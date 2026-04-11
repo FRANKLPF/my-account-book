@@ -1182,8 +1182,19 @@
                     </div>
                 </div>
                 <div class="form-group">
-                    <label>储蓄余额</label>
-                    <input type="number" id="savingsBalance" step="0.01" min="0" required placeholder="0.00">
+                    <label>储蓄/电子钱包</label>
+                    <div id="savingsInputs" style="display:flex;flex-direction:column;gap:8px;">
+                        <div class="savings-input-row" style="display:flex;gap:8px;align-items:center;">
+                            <input type="text" placeholder="名称（如余额宝）" class="savings-name" style="flex:1;padding:10px;border-radius:8px;border:1px solid var(--color-border);background:var(--color-surface-light);color:var(--color-text);font-size:14px;">
+                            <input type="number" placeholder="余额" step="0.01" min="0" class="savings-balance" style="width:120px;padding:10px;border-radius:8px;border:1px solid var(--color-border);background:var(--color-surface-light);color:var(--color-text);font-size:14px;">
+                            <button type="button" class="btn btn-sm btn-danger remove-savings-btn" style="padding:6px 10px;display:none;">✕</button>
+                        </div>
+                    </div>
+                    <button type="button" class="btn btn-sm btn-secondary" id="addSavingsBtn" style="margin-top:8px;width:100%;">+ 添加储蓄/钱包</button>
+                    <div style="margin-top:8px;padding:8px;border-radius:8px;background:var(--color-surface-light);text-align:right;">
+                        <span class="text-muted" style="font-size:13px;">储蓄合计：</span>
+                        <span class="font-number" id="savingsTotal" style="font-size:16px;font-weight:600;color:var(--color-secondary);">¥0.00</span>
+                    </div>
                 </div>
                 <div class="form-group">
                     <label>备注（可选）</label>
@@ -1295,6 +1306,7 @@
             snapshots = (snapData || []).map(s => ({
                 ...s,
                 cards: s.cards || [],
+                savings: s.savings || [],
                 cardBalance: Number(s.card_balance),
                 savingsBalance: Number(s.savings_balance),
                 totalAssets: s.total_assets ? Number(s.total_assets) : null,
@@ -1395,6 +1407,17 @@
                     e.target.closest('.card-input-row').remove();
                     updateRemoveButtons();
                     updateCardsTotal();
+                }
+            });
+
+            // Multi-savings inputs
+            document.getElementById('addSavingsBtn').addEventListener('click', addSavingsRow);
+            document.getElementById('savingsInputs').addEventListener('input', updateSavingsTotal);
+            document.getElementById('savingsInputs').addEventListener('click', (e) => {
+                if (e.target.classList.contains('remove-savings-btn')) {
+                    e.target.closest('.savings-input-row').remove();
+                    updateRemoveSavingsButtons();
+                    updateSavingsTotal();
                 }
             });
 
@@ -1744,10 +1767,17 @@
                             ${changeHtml}
                             <div class="snapshot-details">
                                 ${cardsHtml}
-                                <div class="snapshot-item">
-                                    <div class="snapshot-label">储蓄</div>
-                                    <div class="snapshot-value font-number">${formatCurrency(s.savingsBalance)}</div>
-                                </div>
+                                ${(s.savings && s.savings.length > 0) 
+                                    ? s.savings.map(sv => `
+                                        <div style="display:flex;justify-content:space-between;padding:4px 0;font-size:13px;">
+                                            <span class="text-muted">${sv.name}</span>
+                                            <span class="font-number">${formatCurrency(sv.balance)}</span>
+                                        </div>
+                                    `).join('')
+                                    : `<div class="snapshot-item">
+                                        <div class="snapshot-label">储蓄</div>
+                                        <div class="snapshot-value font-number">${formatCurrency(s.savingsBalance)}</div>
+                                      </div>`}
                             </div>
                             <div style="text-align: center; margin-top: var(--spacing-2); padding-top: var(--spacing-2); border-top: 1px solid var(--color-border);">
                                 <span class="text-muted">总资产：</span>
@@ -1794,11 +1824,40 @@
             document.getElementById('cardsTotal').textContent = '¥' + total.toFixed(2);
         }
 
+        function addSavingsRow() {
+            const container = document.getElementById('savingsInputs');
+            const row = document.createElement('div');
+            row.className = 'savings-input-row';
+            row.style.cssText = 'display:flex;gap:8px;align-items:center;';
+            row.innerHTML = `
+                <input type="text" placeholder="名称（如余额宝）" class="savings-name" style="flex:1;padding:10px;border-radius:8px;border:1px solid var(--color-border);background:var(--color-surface-light);color:var(--color-text);font-size:14px;">
+                <input type="number" placeholder="余额" step="0.01" min="0" class="savings-balance" style="width:120px;padding:10px;border-radius:8px;border:1px solid var(--color-border);background:var(--color-surface-light);color:var(--color-text);font-size:14px;">
+                <button type="button" class="btn btn-sm btn-danger remove-savings-btn" style="padding:6px 10px;">✕</button>
+            `;
+            container.appendChild(row);
+            updateRemoveSavingsButtons();
+        }
+
+        function updateRemoveSavingsButtons() {
+            const rows = document.querySelectorAll('#savingsInputs .savings-input-row');
+            rows.forEach(row => {
+                const btn = row.querySelector('.remove-savings-btn');
+                btn.style.display = rows.length > 1 ? 'inline-block' : 'none';
+            });
+        }
+
+        function updateSavingsTotal() {
+            let total = 0;
+            document.querySelectorAll('#savingsInputs .savings-balance').forEach(input => {
+                total += parseFloat(input.value) || 0;
+            });
+            document.getElementById('savingsTotal').textContent = '¥' + total.toFixed(2);
+        }
+
         async function handleSnapshotSubmit(e) {
             e.preventDefault();
 
             const date = document.getElementById('snapshotDate').value;
-            const savingsBalance = parseFloat(document.getElementById('savingsBalance').value) || 0;
             const note = document.getElementById('snapshotNote').value.trim();
 
             // Collect card data
@@ -1813,7 +1872,19 @@
                 }
             });
 
-            const totalAssets = cardTotal + savingsBalance;
+            // Collect savings data
+            const savings = [];
+            let savingsTotal = 0;
+            document.querySelectorAll('#savingsInputs .savings-input-row').forEach(row => {
+                const name = row.querySelector('.savings-name').value.trim() || '储蓄';
+                const balance = parseFloat(row.querySelector('.savings-balance').value) || 0;
+                if (balance > 0 || name !== '储蓄') {
+                    savings.push({ name, balance });
+                    savingsTotal += balance;
+                }
+            });
+
+            const totalAssets = cardTotal + savingsTotal;
 
             // Calculate balance change from last snapshot
             let balanceChange = 0;
@@ -1831,7 +1902,8 @@
                     date,
                     cards: cards,
                     card_balance: cardTotal,
-                    savings_balance: savingsBalance,
+                    savings: savings,
+                    savings_balance: savingsTotal,
                     total_assets: totalAssets,
                     balance_change: balanceChange,
                     note,
@@ -1848,6 +1920,7 @@
             snapshots.push({
                 ...data,
                 cards: data.cards || [],
+                savings: data.savings || [],
                 cardBalance: Number(data.card_balance),
                 savingsBalance: Number(data.savings_balance),
                 totalAssets: Number(data.total_assets),
@@ -1858,8 +1931,9 @@
 
             document.getElementById('snapshotForm').reset();
             document.getElementById('snapshotModal').classList.remove('active');
-            // Reset to single card row
+            // Reset to single card/savings row
             resetCardInputs();
+            resetSavingsInputs();
 
             showToast('资产快照已保存！', 'success');
             updateAssets();
@@ -1875,6 +1949,18 @@
                 </div>
             `;
             document.getElementById('cardsTotal').textContent = '¥0.00';
+        }
+
+        function resetSavingsInputs() {
+            const container = document.getElementById('savingsInputs');
+            container.innerHTML = `
+                <div class="savings-input-row" style="display:flex;gap:8px;align-items:center;">
+                    <input type="text" placeholder="名称（如余额宝）" class="savings-name" style="flex:1;padding:10px;border-radius:8px;border:1px solid var(--color-border);background:var(--color-surface-light);color:var(--color-text);font-size:14px;">
+                    <input type="number" placeholder="余额" step="0.01" min="0" class="savings-balance" style="width:120px;padding:10px;border-radius:8px;border:1px solid var(--color-border);background:var(--color-surface-light);color:var(--color-text);font-size:14px;">
+                    <button type="button" class="btn btn-sm btn-danger remove-savings-btn" style="padding:6px 10px;display:none;">✕</button>
+                </div>
+            `;
+            document.getElementById('savingsTotal').textContent = '¥0.00';
         }
 
         async function deleteSnapshot(id) {
