@@ -1117,6 +1117,12 @@
                 <p class="text-muted" style="margin-top: var(--spacing-2);">专为夫妻设计的家庭理财工具</p>
                 <p class="text-muted">数据云端同步，多设备共享</p>
             </div>
+
+            <div class="card" id="dangerZone" style="opacity:0.3;transition:opacity 0.3s;cursor:default;" onmouseenter="this.style.opacity='1'" onmouseleave="this.style.opacity='0.3'">
+                <h3 style="color:var(--color-error);">⚠️ 危险区域</h3>
+                <p class="text-muted" style="margin-bottom: var(--spacing-3);">以下操作不可恢复</p>
+                <button class="btn btn-danger" style="width:100%;" id="clearAllDataBtn">清除所有数据</button>
+            </div>
         </div>
     </main>
 
@@ -1161,8 +1167,19 @@
                     <input type="date" id="snapshotDate" required>
                 </div>
                 <div class="form-group">
-                    <label>银行卡余额</label>
-                    <input type="number" id="cardBalance" step="0.01" min="0" required placeholder="0.00">
+                    <label>银行卡</label>
+                    <div id="cardInputs" style="display:flex;flex-direction:column;gap:8px;">
+                        <div class="card-input-row" style="display:flex;gap:8px;align-items:center;">
+                            <input type="text" placeholder="银行名称" class="card-name" style="flex:1;padding:10px;border-radius:8px;border:1px solid var(--color-border);background:var(--color-surface-light);color:var(--color-text);font-size:14px;">
+                            <input type="number" placeholder="余额" step="0.01" min="0" class="card-balance" style="width:120px;padding:10px;border-radius:8px;border:1px solid var(--color-border);background:var(--color-surface-light);color:var(--color-text);font-size:14px;">
+                            <button type="button" class="btn btn-sm btn-danger remove-card-btn" style="padding:6px 10px;display:none;">✕</button>
+                        </div>
+                    </div>
+                    <button type="button" class="btn btn-sm btn-secondary" id="addCardBtn" style="margin-top:8px;width:100%;">+ 添加银行卡</button>
+                    <div style="margin-top:8px;padding:8px;border-radius:8px;background:var(--color-surface-light);text-align:right;">
+                        <span class="text-muted" style="font-size:13px;">银行卡合计：</span>
+                        <span class="font-number" id="cardsTotal" style="font-size:16px;font-weight:600;color:var(--color-primary);">¥0.00</span>
+                    </div>
                 </div>
                 <div class="form-group">
                     <label>储蓄余额</label>
@@ -1277,8 +1294,11 @@
                 .order('date', { ascending: true });
             snapshots = (snapData || []).map(s => ({
                 ...s,
+                cards: s.cards || [],
                 cardBalance: Number(s.card_balance),
                 savingsBalance: Number(s.savings_balance),
+                totalAssets: s.total_assets ? Number(s.total_assets) : null,
+                balanceChange: s.balance_change !== null && s.balance_change !== undefined ? Number(s.balance_change) : null,
                 createdAt: s.created_at
             }));
         }
@@ -1366,6 +1386,17 @@
             });
 
             document.getElementById('snapshotForm').addEventListener('submit', handleSnapshotSubmit);
+
+            // Multi-card inputs
+            document.getElementById('addCardBtn').addEventListener('click', addCardRow);
+            document.getElementById('cardInputs').addEventListener('input', updateCardsTotal);
+            document.getElementById('cardInputs').addEventListener('click', (e) => {
+                if (e.target.classList.contains('remove-card-btn')) {
+                    e.target.closest('.card-input-row').remove();
+                    updateRemoveButtons();
+                    updateCardsTotal();
+                }
+            });
 
             // Asset Assessment
             document.getElementById('calculateAssessment').addEventListener('click', calculateAssessment);
@@ -1682,44 +1713,115 @@
                     </div>
                 `;
             } else {
-                container.innerHTML = snapshots.map(s => `
-                    <div class="card asset-snapshot" style="margin-bottom: var(--spacing-3);">
-                        <div style="display: flex; justify-content: space-between; align-items: center;">
-                            <strong>${formatDate(s.date)}</strong>
-                            <button class="btn btn-sm btn-danger" onclick="deleteSnapshot('${s.id}')">删除</button>
-                        </div>
-                        ${s.note ? `<div class="text-muted" style="font-size: 12px; margin-bottom: var(--spacing-2);">${s.note}</div>` : ''}
-                        <div class="snapshot-details">
-                            <div class="snapshot-item">
-                                <div class="snapshot-label">银行卡</div>
-                                <div class="snapshot-value font-number">${formatCurrency(s.cardBalance)}</div>
-                            </div>
-                            <div class="snapshot-item">
-                                <div class="snapshot-label">储蓄</div>
-                                <div class="snapshot-value font-number">${formatCurrency(s.savingsBalance)}</div>
-                            </div>
-                        </div>
-                        <div style="text-align: center; margin-top: var(--spacing-2); padding-top: var(--spacing-2); border-top: 1px solid var(--color-border);">
-                            <span class="text-muted">总资产：</span>
-                            <span class="font-number" style="font-size: 18px; font-weight: 600; color: var(--color-primary);">
-                                ${formatCurrency(s.cardBalance + s.savingsBalance)}
+                container.innerHTML = snapshots.map(s => {
+                    const total = s.totalAssets || (s.cardBalance + s.savingsBalance);
+                    const cards = s.cards || [];
+                    const changeHtml = s.balanceChange !== undefined && s.balanceChange !== null
+                        ? `<div style="text-align:right;font-size:13px;margin-bottom:4px;">
+                            <span class="text-muted">较上次：</span>
+                            <span class="font-number" style="color:${s.balanceChange >= 0 ? 'var(--color-income)' : 'var(--color-expense)'};">
+                                ${s.balanceChange >= 0 ? '+' : ''}${formatCurrency(s.balanceChange)}
                             </span>
+                           </div>` : '';
+                    const cardsHtml = cards.length > 0
+                        ? cards.map(c => `
+                            <div style="display:flex;justify-content:space-between;padding:4px 0;font-size:13px;">
+                                <span class="text-muted">${c.name}</span>
+                                <span class="font-number">${formatCurrency(c.balance)}</span>
+                            </div>
+                        `).join('')
+                        : `<div class="snapshot-item">
+                            <div class="snapshot-label">银行卡</div>
+                            <div class="snapshot-value font-number">${formatCurrency(s.cardBalance)}</div>
+                           </div>`;
+                    return `
+                        <div class="card asset-snapshot" style="margin-bottom: var(--spacing-3);">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <strong>${formatDate(s.date)}</strong>
+                                <button class="btn btn-sm btn-danger" onclick="deleteSnapshot('${s.id}')">删除</button>
+                            </div>
+                            ${s.note ? `<div class="text-muted" style="font-size: 12px; margin-bottom: var(--spacing-2);">${s.note}</div>` : ''}
+                            ${changeHtml}
+                            <div class="snapshot-details">
+                                ${cardsHtml}
+                                <div class="snapshot-item">
+                                    <div class="snapshot-label">储蓄</div>
+                                    <div class="snapshot-value font-number">${formatCurrency(s.savingsBalance)}</div>
+                                </div>
+                            </div>
+                            <div style="text-align: center; margin-top: var(--spacing-2); padding-top: var(--spacing-2); border-top: 1px solid var(--color-border);">
+                                <span class="text-muted">总资产：</span>
+                                <span class="font-number" style="font-size: 18px; font-weight: 600; color: var(--color-primary);">
+                                    ${formatCurrency(total)}
+                                </span>
+                            </div>
                         </div>
-                    </div>
-                `).join('');
+                    `;
+                }).join('');
             }
 
             updateAssetAssessment();
             updateAssetChart();
         }
 
+        function addCardRow() {
+            const container = document.getElementById('cardInputs');
+            const row = document.createElement('div');
+            row.className = 'card-input-row';
+            row.style.cssText = 'display:flex;gap:8px;align-items:center;';
+            row.innerHTML = `
+                <input type="text" placeholder="银行名称" class="card-name" style="flex:1;padding:10px;border-radius:8px;border:1px solid var(--color-border);background:var(--color-surface-light);color:var(--color-text);font-size:14px;">
+                <input type="number" placeholder="余额" step="0.01" min="0" class="card-balance" style="width:120px;padding:10px;border-radius:8px;border:1px solid var(--color-border);background:var(--color-surface-light);color:var(--color-text);font-size:14px;">
+                <button type="button" class="btn btn-sm btn-danger remove-card-btn" style="padding:6px 10px;">✕</button>
+            `;
+            container.appendChild(row);
+            updateRemoveButtons();
+        }
+
+        function updateRemoveButtons() {
+            const rows = document.querySelectorAll('#cardInputs .card-input-row');
+            rows.forEach(row => {
+                const btn = row.querySelector('.remove-card-btn');
+                btn.style.display = rows.length > 1 ? 'inline-block' : 'none';
+            });
+        }
+
+        function updateCardsTotal() {
+            let total = 0;
+            document.querySelectorAll('#cardInputs .card-balance').forEach(input => {
+                total += parseFloat(input.value) || 0;
+            });
+            document.getElementById('cardsTotal').textContent = '¥' + total.toFixed(2);
+        }
+
         async function handleSnapshotSubmit(e) {
             e.preventDefault();
 
             const date = document.getElementById('snapshotDate').value;
-            const cardBalance = parseFloat(document.getElementById('cardBalance').value);
-            const savingsBalance = parseFloat(document.getElementById('savingsBalance').value);
+            const savingsBalance = parseFloat(document.getElementById('savingsBalance').value) || 0;
             const note = document.getElementById('snapshotNote').value.trim();
+
+            // Collect card data
+            const cards = [];
+            let cardTotal = 0;
+            document.querySelectorAll('#cardInputs .card-input-row').forEach(row => {
+                const name = row.querySelector('.card-name').value.trim() || '银行卡';
+                const balance = parseFloat(row.querySelector('.card-balance').value) || 0;
+                if (balance > 0 || name !== '银行卡') {
+                    cards.push({ name, balance });
+                    cardTotal += balance;
+                }
+            });
+
+            const totalAssets = cardTotal + savingsBalance;
+
+            // Calculate balance change from last snapshot
+            let balanceChange = 0;
+            if (snapshots.length > 0) {
+                const lastSnapshot = snapshots[snapshots.length - 1];
+                const lastTotal = (lastSnapshot.totalAssets || (lastSnapshot.cardBalance + lastSnapshot.savingsBalance));
+                balanceChange = totalAssets - lastTotal;
+            }
 
             const { data: { user } } = await db.auth.getUser();
 
@@ -1727,8 +1829,11 @@
                 .from('snapshots')
                 .insert({
                     date,
-                    card_balance: cardBalance,
+                    cards: cards,
+                    card_balance: cardTotal,
                     savings_balance: savingsBalance,
+                    total_assets: totalAssets,
+                    balance_change: balanceChange,
                     note,
                     user_id: user.id
                 })
@@ -1742,17 +1847,34 @@
 
             snapshots.push({
                 ...data,
+                cards: data.cards || [],
                 cardBalance: Number(data.card_balance),
                 savingsBalance: Number(data.savings_balance),
+                totalAssets: Number(data.total_assets),
+                balanceChange: Number(data.balance_change),
                 createdAt: data.created_at
             });
             snapshots.sort((a, b) => new Date(a.date) - new Date(b.date));
 
             document.getElementById('snapshotForm').reset();
             document.getElementById('snapshotModal').classList.remove('active');
+            // Reset to single card row
+            resetCardInputs();
 
             showToast('资产快照已保存！', 'success');
             updateAssets();
+        }
+
+        function resetCardInputs() {
+            const container = document.getElementById('cardInputs');
+            container.innerHTML = `
+                <div class="card-input-row" style="display:flex;gap:8px;align-items:center;">
+                    <input type="text" placeholder="银行名称" class="card-name" style="flex:1;padding:10px;border-radius:8px;border:1px solid var(--color-border);background:var(--color-surface-light);color:var(--color-text);font-size:14px;">
+                    <input type="number" placeholder="余额" step="0.01" min="0" class="card-balance" style="width:120px;padding:10px;border-radius:8px;border:1px solid var(--color-border);background:var(--color-surface-light);color:var(--color-text);font-size:14px;">
+                    <button type="button" class="btn btn-sm btn-danger remove-card-btn" style="padding:6px 10px;display:none;">✕</button>
+                </div>
+            `;
+            document.getElementById('cardsTotal').textContent = '¥0.00';
         }
 
         async function deleteSnapshot(id) {
@@ -1776,9 +1898,10 @@
             const fromSelect = document.getElementById('assessmentFrom');
             const toSelect = document.getElementById('assessmentTo');
 
-            const options = snapshots.map(s =>
-                `<option value="${s.id}">${formatDate(s.date)} - ${formatCurrency(s.cardBalance + s.savingsBalance)}</option>`
-            ).join('');
+            const options = snapshots.map(s => {
+                const total = s.totalAssets || (s.cardBalance + s.savingsBalance);
+                return `<option value="${s.id}">${formatDate(s.date)} - ${formatCurrency(total)}</option>`;
+            }).join('');
 
             fromSelect.innerHTML = options || '<option value="">暂无快照</option>';
             toSelect.innerHTML = options || '<option value="">暂无快照</option>';
@@ -1806,8 +1929,8 @@
                 return;
             }
 
-            const fromTotal = fromSnapshot.cardBalance + fromSnapshot.savingsBalance;
-            const toTotal = toSnapshot.cardBalance + toSnapshot.savingsBalance;
+            const fromTotal = fromSnapshot.totalAssets || (fromSnapshot.cardBalance + fromSnapshot.savingsBalance);
+            const toTotal = toSnapshot.totalAssets || (toSnapshot.cardBalance + toSnapshot.savingsBalance);
             const change = toTotal - fromTotal;
 
             const fromDate = new Date(fromSnapshot.date);
@@ -2385,6 +2508,24 @@
             newLogoutBtn.addEventListener('click', async () => {
                 if (await showConfirm('确定要退出登录吗？')) {
                     await db.auth.signOut();
+                }
+            });
+
+            const clearBtn = document.getElementById('clearAllDataBtn');
+            const newClearBtn = clearBtn.cloneNode(true);
+            clearBtn.parentNode.replaceChild(newClearBtn, clearBtn);
+            newClearBtn.addEventListener('click', async () => {
+                if (await showConfirm('⚠️ 确定要清除所有数据吗？此操作不可恢复！')) {
+                    if (await showConfirm('再次确认：所有记账记录和资产快照将被永久删除！')) {
+                        const { data: { user } } = await db.auth.getUser();
+                        await db.from('transactions').delete().eq('user_id', user.id);
+                        await db.from('snapshots').delete().eq('user_id', user.id);
+                        transactions = [];
+                        snapshots = [];
+                        updateDashboard();
+                        populateFilters();
+                        showToast('所有数据已清除', 'success');
+                    }
                 }
             });
         }
