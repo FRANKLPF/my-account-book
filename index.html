@@ -1225,9 +1225,9 @@
             '礼金红包': '🧧', '其他收入': '💵'
         };
 
-        const SUPABASE_URL = 'https://aglqeevuklpofovrwyjw.supabase.co';
+        const SUPABASE_URL = 'https://aglqeevuklpofovrwyjw.db.co';
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFnbHFlZXZ1a2xwb2ZvdnJ3eWp3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4NjQzNTIsImV4cCI6MjA5MTQ0MDM1Mn0.RdKXciQIcRWYjjHSgKwfnKvu3MpNeOQ05Q8WWCT_hKE';
-        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        const db = window.db.createClient(SUPABASE_URL, SUPABASE_KEY);
 
         // State
         let transactions = [];
@@ -1240,7 +1240,7 @@
         // Initialize
         document.addEventListener('DOMContentLoaded', async () => {
             try {
-                const { data: { session } } = await supabase.auth.getSession();
+                const { data: { session } } = await db.auth.getSession();
                 if (session) {
                     showApp();
                 } else {
@@ -1254,10 +1254,10 @@
 
         // Data Management
         async function loadData() {
-            const { data: { user } } = await supabase.auth.getUser();
+            const { data: { user } } = await db.auth.getUser();
             if (!user) return;
 
-            const { data: transData } = await supabase
+            const { data: transData } = await db
                 .from('transactions')
                 .select('*')
                 .order('date', { ascending: false });
@@ -1266,7 +1266,7 @@
                 createdAt: t.created_at
             }));
 
-            const { data: snapData } = await supabase
+            const { data: snapData } = await db
                 .from('snapshots')
                 .select('*')
                 .order('date', { ascending: true });
@@ -1423,9 +1423,9 @@
                 return;
             }
 
-            const { data: { user } } = await supabase.auth.getUser();
+            const { data: { user } } = await db.auth.getUser();
 
-            const { data, error } = await supabase
+            const { data, error } = await db
                 .from('transactions')
                 .insert({
                     date,
@@ -1457,7 +1457,7 @@
 
         async function deleteTransaction(id) {
             if (await showConfirm('确定要删除这条记录吗？')) {
-                const { error } = await supabase
+                const { error } = await db
                     .from('transactions')
                     .delete()
                     .eq('id', id);
@@ -1716,9 +1716,9 @@
             const savingsBalance = parseFloat(document.getElementById('savingsBalance').value);
             const note = document.getElementById('snapshotNote').value.trim();
 
-            const { data: { user } } = await supabase.auth.getUser();
+            const { data: { user } } = await db.auth.getUser();
 
-            const { data, error } = await supabase
+            const { data, error } = await db
                 .from('snapshots')
                 .insert({
                     date,
@@ -1752,7 +1752,7 @@
 
         async function deleteSnapshot(id) {
             if (await showConfirm('确定要删除这个快照吗？')) {
-                const { error } = await supabase
+                const { error } = await db
                     .from('snapshots')
                     .delete()
                     .eq('id', id);
@@ -2175,11 +2175,11 @@
                     }
 
                     if (await showConfirm('导入将覆盖现有数据，确定要继续吗？')) {
-                        const { data: { user } } = await supabase.auth.getUser();
+                        const { data: { user } } = await db.auth.getUser();
 
                         // Delete existing data
-                        await supabase.from('transactions').delete().eq('user_id', user.id);
-                        await supabase.from('snapshots').delete().eq('user_id', user.id);
+                        await db.from('transactions').delete().eq('user_id', user.id);
+                        await db.from('snapshots').delete().eq('user_id', user.id);
 
                         // Insert transactions
                         if (data.transactions.length > 0) {
@@ -2192,7 +2192,7 @@
                                 person: t.person,
                                 user_id: user.id
                             }));
-                            await supabase.from('transactions').insert(transRows);
+                            await db.from('transactions').insert(transRows);
                         }
 
                         // Insert snapshots
@@ -2205,7 +2205,7 @@
                                 note: s.note || '',
                                 user_id: user.id
                             }));
-                            await supabase.from('snapshots').insert(snapRows);
+                            await db.from('snapshots').insert(snapRows);
                         }
 
                         await loadData();
@@ -2298,7 +2298,7 @@
                 return;
             }
 
-            const { error } = await supabase.auth.signInWithPassword({ email, password });
+            const { error } = await db.auth.signInWithPassword({ email, password });
             if (error) {
                 errorEl.textContent = error.message === 'Invalid login credentials' ? '邮箱或密码错误' : error.message;
                 errorEl.style.display = 'block';
@@ -2324,7 +2324,7 @@
                 return;
             }
 
-            const { error } = await supabase.auth.signUp({ email, password });
+            const { error } = await db.auth.signUp({ email, password });
             if (error) {
                 errorEl.textContent = error.message;
                 errorEl.style.display = 'block';
@@ -2343,7 +2343,7 @@
                 return;
             }
 
-            const { error } = await supabase.auth.resetPasswordForEmail(email);
+            const { error } = await db.auth.resetPasswordForEmail(email);
             if (error) {
                 errorEl.textContent = error.message;
                 errorEl.style.display = 'block';
@@ -2371,7 +2371,7 @@
             updateDashboard();
             populateFilters();
 
-            const { data: { user } } = await supabase.auth.getUser();
+            const { data: { user } } = await db.auth.getUser();
             document.getElementById('userEmail').textContent = user ? `已登录：${user.email}` : '未登录';
 
             const logoutBtn = document.getElementById('logoutBtn');
@@ -2379,13 +2379,13 @@
             logoutBtn.parentNode.replaceChild(newLogoutBtn, logoutBtn);
             newLogoutBtn.addEventListener('click', async () => {
                 if (await showConfirm('确定要退出登录吗？')) {
-                    await supabase.auth.signOut();
+                    await db.auth.signOut();
                 }
             });
         }
 
         // Auth state change listener
-        supabase.auth.onAuthStateChange((event, session) => {
+        db.auth.onAuthStateChange((event, session) => {
             if (event === 'SIGNED_OUT') {
                 showLogin();
             }
