@@ -1,0 +1,2411 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>家庭记账本</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600;700&family=Oswald:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        :root {
+            /* Design Tokens - Colors */
+            --color-primary: #FF6B35;
+            --color-primary-dark: #E85A2A;
+            --color-secondary: #2D6A4F;
+            --color-secondary-light: #40916C;
+            --color-background: #1a1a2e;
+            --color-surface: #242442;
+            --color-surface-light: #2e2e50;
+            --color-text: #f8f9fa;
+            --color-text-muted: #adb5bd;
+            --color-text-dark: #dee2e6;
+            --color-success: #2D6A4F;
+            --color-warning: #F4A261;
+            --color-error: #E76F51;
+            --color-income: #2D6A4F;
+            --color-expense: #E76F51;
+            --color-border: #3e3e5e;
+            --color-focus: rgba(255, 107, 53, 0.3);
+
+            /* Design Tokens - Typography */
+            --font-chinese: 'Noto Sans SC', 'PingFang SC', 'Hiragino Sans GB', system-ui, -apple-system, sans-serif;
+            --font-number: 'Oswald', 'Noto Sans SC', sans-serif;
+            --font-display: 'Oswald', sans-serif;
+
+            /* Design Tokens - Spacing */
+            --spacing-1: 4px;
+            --spacing-2: 8px;
+            --spacing-3: 12px;
+            --spacing-4: 16px;
+            --spacing-5: 20px;
+            --spacing-6: 24px;
+            --spacing-8: 32px;
+            --spacing-10: 40px;
+            --spacing-12: 48px;
+            --spacing-16: 64px;
+
+            /* Design Tokens - Border Radius */
+            --radius-sm: 8px;
+            --radius-md: 12px;
+            --radius-lg: 16px;
+            --radius-xl: 24px;
+
+            /* Design Tokens - Shadows */
+            --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.1);
+            --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.15);
+            --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.2);
+            --shadow-xl: 0 12px 32px rgba(0, 0, 0, 0.25);
+
+            /* Design Tokens - Transitions */
+            --transition-fast: 0.15s ease;
+            --transition-normal: 0.3s ease;
+            --transition-slow: 0.5s ease;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: var(--font-chinese);
+            background-color: var(--color-background);
+            color: var(--color-text);
+            line-height: 1.6;
+            min-height: 100vh;
+            padding-bottom: 80px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: var(--spacing-4);
+        }
+
+        /* Typography */
+        h1, h2, h3, h4 {
+            font-weight: 600;
+            color: var(--color-text);
+        }
+
+        h1 { font-size: 28px; }
+        h2 { font-size: 24px; }
+        h3 { font-size: 20px; }
+        h4 { font-size: 18px; }
+
+        .text-muted {
+            color: var(--color-text-muted);
+        }
+
+        .text-success {
+            color: var(--color-success);
+        }
+
+        .text-error {
+            color: var(--color-error);
+        }
+
+        .text-income {
+            color: var(--color-income);
+        }
+
+        .text-expense {
+            color: var(--color-expense);
+        }
+
+        .font-number {
+            font-family: var(--font-number);
+        }
+
+        /* Cards */
+        .card {
+            background-color: var(--color-surface);
+            border-radius: var(--radius-md);
+            padding: var(--spacing-4);
+            margin-bottom: var(--spacing-4);
+            box-shadow: var(--shadow-md);
+            transition: transform var(--transition-normal), box-shadow var(--transition-normal);
+        }
+
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        /* Buttons */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: var(--spacing-3) var(--spacing-6);
+            border: none;
+            border-radius: var(--radius-sm);
+            font-family: var(--font-chinese);
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all var(--transition-fast);
+            background-color: var(--color-primary);
+            color: white;
+            gap: var(--spacing-2);
+        }
+
+        .btn:hover {
+            background-color: var(--color-primary-dark);
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .btn-secondary {
+            background-color: var(--color-surface-light);
+        }
+
+        .btn-secondary:hover {
+            background-color: var(--color-border);
+        }
+
+        .btn-success {
+            background-color: var(--color-secondary);
+        }
+
+        .btn-success:hover {
+            background-color: var(--color-secondary-light);
+        }
+
+        .btn-danger {
+            background-color: var(--color-error);
+        }
+
+        .btn-danger:hover {
+            background-color: #c95c3d;
+        }
+
+        .btn-sm {
+            padding: var(--spacing-2) var(--spacing-4);
+            font-size: 12px;
+        }
+
+        .btn-lg {
+            padding: var(--spacing-4) var(--spacing-8);
+            font-size: 16px;
+        }
+
+        /* Form Elements */
+        .form-group {
+            margin-bottom: var(--spacing-4);
+        }
+
+        label {
+            display: block;
+            margin-bottom: var(--spacing-2);
+            font-weight: 500;
+            color: var(--color-text-dark);
+        }
+
+        input[type="text"],
+        input[type="number"],
+        input[type="date"],
+        select,
+        textarea {
+            width: 100%;
+            padding: var(--spacing-3);
+            border: 2px solid var(--color-border);
+            border-radius: var(--radius-sm);
+            background-color: var(--color-background);
+            color: var(--color-text);
+            font-family: var(--font-chinese);
+            font-size: 16px;
+            transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+        }
+
+        input:focus,
+        select:focus,
+        textarea:focus {
+            outline: none;
+            border-color: var(--color-primary);
+            box-shadow: 0 0 0 3px var(--color-focus);
+        }
+
+        /* Toggle Switch */
+        .toggle-container {
+            display: flex;
+            gap: var(--spacing-2);
+            background-color: var(--color-surface-light);
+            padding: var(--spacing-1);
+            border-radius: var(--radius-sm);
+        }
+
+        .toggle-btn {
+            flex: 1;
+            padding: var(--spacing-3);
+            border: none;
+            background: transparent;
+            color: var(--color-text-muted);
+            font-family: var(--font-chinese);
+            font-weight: 500;
+            cursor: pointer;
+            border-radius: var(--radius-sm);
+            transition: all var(--transition-fast);
+        }
+
+        .toggle-btn.active {
+            background-color: var(--color-primary);
+            color: white;
+        }
+
+        /* Header */
+        header {
+            background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
+            padding: var(--spacing-6) var(--spacing-4);
+            border-radius: 0 0 var(--radius-xl) var(--radius-xl);
+            margin-bottom: var(--spacing-6);
+            box-shadow: var(--shadow-lg);
+            position: relative;
+            overflow: hidden;
+        }
+
+        header::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 60%);
+            pointer-events: none;
+        }
+
+        header h1 {
+            color: white;
+            margin-bottom: var(--spacing-2);
+            position: relative;
+        }
+
+        .header-balance {
+            color: white;
+            font-family: var(--font-number);
+            font-size: 48px;
+            font-weight: 700;
+            margin-bottom: var(--spacing-2);
+            position: relative;
+        }
+
+        .header-sub {
+            color: rgba(255,255,255,0.8);
+            font-size: 14px;
+            position: relative;
+        }
+
+        /* Bottom Navigation */
+        .bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background-color: var(--color-surface);
+            padding: var(--spacing-2) var(--spacing-4);
+            display: flex;
+            justify-content: space-around;
+            gap: var(--spacing-2);
+            box-shadow: 0 -4px 20px rgba(0,0,0,0.3);
+            z-index: 100;
+        }
+
+        .nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: var(--spacing-2);
+            border: none;
+            background: transparent;
+            color: var(--color-text-muted);
+            font-family: var(--font-chinese);
+            font-size: 11px;
+            cursor: pointer;
+            transition: all var(--transition-fast);
+            border-radius: var(--radius-sm);
+        }
+
+        .nav-item.active {
+            color: var(--color-primary);
+            background-color: rgba(255, 107, 53, 0.1);
+        }
+
+        .nav-item .icon {
+            font-size: 24px;
+            margin-bottom: var(--spacing-1);
+        }
+
+        /* Pages */
+        .page {
+            display: none;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .page.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Summary Cards */
+        .summary-cards {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: var(--spacing-4);
+            margin-bottom: var(--spacing-6);
+        }
+
+        .summary-card {
+            background: linear-gradient(135deg, var(--color-surface) 0%, var(--color-surface-light) 100%);
+            border-radius: var(--radius-lg);
+            padding: var(--spacing-4);
+            text-align: center;
+            border: 1px solid var(--color-border);
+        }
+
+        .summary-card.income {
+            border-color: var(--color-income);
+        }
+
+        .summary-card.expense {
+            border-color: var(--color-expense);
+        }
+
+        .summary-card-label {
+            font-size: 12px;
+            color: var(--color-text-muted);
+            margin-bottom: var(--spacing-2);
+        }
+
+        .summary-card-value {
+            font-family: var(--font-number);
+            font-size: 24px;
+            font-weight: 700;
+        }
+
+        .summary-card-value.income {
+            color: var(--color-income);
+        }
+
+        .summary-card-value.expense {
+            color: var(--color-expense);
+        }
+
+        /* Person Selector */
+        .person-selector {
+            display: flex;
+            gap: var(--spacing-2);
+            margin-bottom: var(--spacing-4);
+        }
+
+        .person-btn {
+            flex: 1;
+            padding: var(--spacing-3);
+            border: 2px solid var(--color-border);
+            border-radius: var(--radius-sm);
+            background: transparent;
+            color: var(--color-text-muted);
+            font-family: var(--font-chinese);
+            font-weight: 500;
+            cursor: pointer;
+            transition: all var(--transition-fast);
+        }
+
+        .person-btn.active {
+            border-color: var(--color-primary);
+            background-color: rgba(255, 107, 53, 0.1);
+            color: var(--color-primary);
+        }
+
+        /* Transaction List */
+        .transaction-item {
+            display: flex;
+            align-items: center;
+            padding: var(--spacing-4);
+            border-bottom: 1px solid var(--color-border);
+            transition: background-color var(--transition-fast);
+        }
+
+        .transaction-item:last-child {
+            border-bottom: none;
+        }
+
+        .transaction-item:hover {
+            background-color: var(--color-surface-light);
+        }
+
+        .transaction-icon {
+            font-size: 32px;
+            margin-right: var(--spacing-4);
+        }
+
+        .transaction-info {
+            flex: 1;
+        }
+
+        .transaction-category {
+            font-weight: 600;
+            margin-bottom: var(--spacing-1);
+        }
+
+        .transaction-meta {
+            font-size: 12px;
+            color: var(--color-text-muted);
+        }
+
+        .transaction-person {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            background-color: var(--color-surface-light);
+            font-size: 11px;
+            margin-left: var(--spacing-2);
+        }
+
+        .transaction-amount {
+            font-family: var(--font-number);
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        .transaction-amount.income {
+            color: var(--color-income);
+        }
+
+        .transaction-amount.expense {
+            color: var(--color-expense);
+        }
+
+        /* Category Grid */
+        .category-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: var(--spacing-2);
+            margin-bottom: var(--spacing-4);
+        }
+
+        .category-item {
+            padding: var(--spacing-3) var(--spacing-2);
+            border: 2px solid var(--color-border);
+            border-radius: var(--radius-sm);
+            background: transparent;
+            text-align: center;
+            cursor: pointer;
+            transition: all var(--transition-fast);
+        }
+
+        .category-item:hover {
+            border-color: var(--color-primary);
+            background-color: rgba(255, 107, 53, 0.05);
+        }
+
+        .category-item.selected {
+            border-color: var(--color-primary);
+            background-color: rgba(255, 107, 53, 0.1);
+        }
+
+        .category-item .emoji {
+            font-size: 28px;
+            display: block;
+            margin-bottom: var(--spacing-1);
+        }
+
+        .category-item .name {
+            font-size: 11px;
+            color: var(--color-text-muted);
+        }
+
+        /* Filters */
+        .filters {
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-3);
+            margin-bottom: var(--spacing-4);
+        }
+
+        .filter-row {
+            display: flex;
+            gap: var(--spacing-2);
+        }
+
+        .filter-row > * {
+            flex: 1;
+        }
+
+        /* Chart Container */
+        .chart-container {
+            position: relative;
+            height: 300px;
+            margin-bottom: var(--spacing-6);
+        }
+
+        .chart-container-sm {
+            height: 200px;
+        }
+
+        /* Asset Snapshot */
+        .asset-snapshot {
+            border-left: 4px solid var(--color-primary);
+        }
+
+        .snapshot-details {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: var(--spacing-4);
+            margin-top: var(--spacing-3);
+        }
+
+        .snapshot-item {
+            text-align: center;
+        }
+
+        .snapshot-label {
+            font-size: 12px;
+            color: var(--color-text-muted);
+            margin-bottom: var(--spacing-1);
+        }
+
+        .snapshot-value {
+            font-family: var(--font-number);
+            font-size: 20px;
+            font-weight: 600;
+            color: var(--color-primary);
+        }
+
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.7);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            padding: var(--spacing-4);
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background-color: var(--color-surface);
+            border-radius: var(--radius-lg);
+            padding: var(--spacing-6);
+            max-width: 500px;
+            width: 100%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: var(--spacing-4);
+        }
+
+        .modal-title {
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 28px;
+            color: var(--color-text-muted);
+            cursor: pointer;
+            line-height: 1;
+            padding: 0;
+            width: 32px;
+            height: 32px;
+        }
+
+        .modal-close:hover {
+            color: var(--color-text);
+        }
+
+        .modal-body {
+            margin-bottom: var(--spacing-4);
+        }
+
+        .modal-footer {
+            display: flex;
+            gap: var(--spacing-2);
+            justify-content: flex-end;
+        }
+
+        /* Toast */
+        .toast {
+            position: fixed;
+            top: var(--spacing-4);
+            right: var(--spacing-4);
+            background-color: var(--color-surface);
+            border: 2px solid var(--color-primary);
+            border-radius: var(--radius-md);
+            padding: var(--spacing-4);
+            box-shadow: var(--shadow-lg);
+            z-index: 1001;
+            animation: slideIn 0.3s ease;
+        }
+
+        .toast.success {
+            border-color: var(--color-secondary);
+        }
+
+        .toast.error {
+            border-color: var(--color-error);
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: var(--spacing-10) var(--spacing-4);
+            color: var(--color-text-muted);
+        }
+
+        .empty-state .icon {
+            font-size: 64px;
+            margin-bottom: var(--spacing-4);
+            opacity: 0.5;
+        }
+
+        .empty-state h3 {
+            margin-bottom: var(--spacing-2);
+            color: var(--color-text);
+        }
+
+        /* Responsive */
+        @media (min-width: 600px) {
+            .container {
+                padding: var(--spacing-6);
+            }
+
+            h1 { font-size: 32px; }
+
+            .category-grid {
+                grid-template-columns: repeat(5, 1fr);
+            }
+
+            .summary-cards {
+                grid-template-columns: repeat(4, 1fr);
+            }
+
+            body {
+                padding-bottom: var(--spacing-8);
+            }
+        }
+
+        /* Animations */
+        .count-up {
+            animation: countUp 0.5s ease-out;
+        }
+
+        @keyframes countUp {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--color-background);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--color-border);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--color-primary);
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header>
+        <div class="container">
+            <h1>家庭记账本</h1>
+            <div class="header-balance font-number" id="headerBalance">¥0.00</div>
+            <div class="header-sub">本月收支概况</div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="container">
+        <!-- Dashboard Page -->
+        <div class="page active" id="page-dashboard">
+            <div class="summary-cards">
+                <div class="summary-card income">
+                    <div class="summary-card-label">本月收入</div>
+                    <div class="summary-card-value income font-number" id="monthlyIncome">¥0.00</div>
+                </div>
+                <div class="summary-card expense">
+                    <div class="summary-card-label">本月支出</div>
+                    <div class="summary-card-value expense font-number" id="monthlyExpense">¥0.00</div>
+                </div>
+                <div class="summary-card">
+                    <div class="summary-card-label">老公支出</div>
+                    <div class="summary-card-value font-number" id="husbandExpense">¥0.00</div>
+                </div>
+                <div class="summary-card">
+                    <div class="summary-card-label">老婆支出</div>
+                    <div class="summary-card-value font-number" id="wifeExpense">¥0.00</div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>最近交易</h3>
+                <div id="recentTransactions">
+                    <div class="empty-state">
+                        <div class="icon">📊</div>
+                        <h3>暂无交易记录</h3>
+                        <p>点击下方"记账"按钮开始记录您的第一笔交易</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Add Record Page -->
+        <div class="page" id="page-add">
+            <div class="card">
+                <h3>添加记录</h3>
+                <form id="transactionForm">
+                    <div class="form-group">
+                        <label>类型</label>
+                        <div class="toggle-container">
+                            <button type="button" class="toggle-btn active" data-type="expense">支出</button>
+                            <button type="button" class="toggle-btn" data-type="income">收入</button>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>金额</label>
+                        <input type="number" id="amount" step="0.01" min="0.01" required placeholder="请输入金额" style="font-size: 20px; font-weight: 600;">
+                    </div>
+
+                    <div class="form-group">
+                        <label>类别</label>
+                        <div class="category-grid" id="expenseCategories">
+                            <button type="button" class="category-item" data-category="餐饮">
+                                <span class="emoji">🍚</span>
+                                <span class="name">餐饮</span>
+                            </button>
+                            <button type="button" class="category-item" data-category="住房">
+                                <span class="emoji">🏠</span>
+                                <span class="name">住房</span>
+                            </button>
+                            <button type="button" class="category-item" data-category="交通出行">
+                                <span class="emoji">🚗</span>
+                                <span class="name">交通</span>
+                            </button>
+                            <button type="button" class="category-item" data-category="服饰美容">
+                                <span class="emoji">👗</span>
+                                <span class="name">服饰</span>
+                            </button>
+                            <button type="button" class="category-item" data-category="日用品">
+                                <span class="emoji">🛍️</span>
+                                <span class="name">日用</span>
+                            </button>
+                            <button type="button" class="category-item" data-category="娱乐休闲">
+                                <span class="emoji">🎮</span>
+                                <span class="name">娱乐</span>
+                            </button>
+                            <button type="button" class="category-item" data-category="医疗健康">
+                                <span class="emoji">💊</span>
+                                <span class="name">医疗</span>
+                            </button>
+                            <button type="button" class="category-item" data-category="教育学习">
+                                <span class="emoji">📚</span>
+                                <span class="name">教育</span>
+                            </button>
+                            <button type="button" class="category-item" data-category="人情往来">
+                                <span class="emoji">🎁</span>
+                                <span class="name">人情</span>
+                            </button>
+                            <button type="button" class="category-item" data-category="孝敬父母">
+                                <span class="emoji">👴</span>
+                                <span class="name">孝敬</span>
+                            </button>
+                            <button type="button" class="category-item" data-category="保险">
+                                <span class="emoji">🛡️</span>
+                                <span class="name">保险</span>
+                            </button>
+                            <button type="button" class="category-item" data-category="旅行出游">
+                                <span class="emoji">✈️</span>
+                                <span class="name">旅行</span>
+                            </button>
+                            <button type="button" class="category-item" data-category="大件购置">
+                                <span class="emoji">📺</span>
+                                <span class="name">大件</span>
+                            </button>
+                            <button type="button" class="category-item" data-category="通讯网络">
+                                <span class="emoji">📱</span>
+                                <span class="name">通讯</span>
+                            </button>
+                            <button type="button" class="category-item" data-category="水电燃气">
+                                <span class="emoji">💡</span>
+                                <span class="name">水电</span>
+                            </button>
+                            <button type="button" class="category-item" data-category="其他支出">
+                                <span class="emoji">📝</span>
+                                <span class="name">其他</span>
+                            </button>
+                        </div>
+                        <div class="category-grid" id="incomeCategories" style="display: none;">
+                            <button type="button" class="category-item" data-category="工资">
+                                <span class="emoji">💰</span>
+                                <span class="name">工资</span>
+                            </button>
+                            <button type="button" class="category-item" data-category="奖金">
+                                <span class="emoji">🎉</span>
+                                <span class="name">奖金</span>
+                            </button>
+                            <button type="button" class="category-item" data-category="投资收益">
+                                <span class="emoji">📈</span>
+                                <span class="name">投资</span>
+                            </button>
+                            <button type="button" class="category-item" data-category="副业收入">
+                                <span class="emoji">💼</span>
+                                <span class="name">副业</span>
+                            </button>
+                            <button type="button" class="category-item" data-category="兼职收入">
+                                <span class="emoji">🔨</span>
+                                <span class="name">兼职</span>
+                            </button>
+                            <button type="button" class="category-item" data-category="理财收益">
+                                <span class="emoji">🏦</span>
+                                <span class="name">理财</span>
+                            </button>
+                            <button type="button" class="category-item" data-category="礼金红包">
+                                <span class="emoji">🧧</span>
+                                <span class="name">礼金</span>
+                            </button>
+                            <button type="button" class="category-item" data-category="其他收入">
+                                <span class="emoji">💵</span>
+                                <span class="name">其他</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>日期</label>
+                        <input type="date" id="transactionDate" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label>记录人</label>
+                        <div class="person-selector">
+                            <button type="button" class="person-btn active" data-person="老公">老公</button>
+                            <button type="button" class="person-btn" data-person="老婆">老婆</button>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>备注（可选）</label>
+                        <input type="text" id="description" placeholder="添加备注信息">
+                    </div>
+
+                    <button type="submit" class="btn btn-lg" style="width: 100%;">添加记录</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Transactions Page -->
+        <div class="page" id="page-transactions">
+            <div class="card">
+                <h3>交易明细</h3>
+
+                <div class="filters">
+                    <div class="filter-row">
+                        <select id="filterType">
+                            <option value="all">全部类型</option>
+                            <option value="expense">支出</option>
+                            <option value="income">收入</option>
+                        </select>
+                        <select id="filterPerson">
+                            <option value="all">全部人员</option>
+                            <option value="老公">老公</option>
+                            <option value="老婆">老婆</option>
+                        </select>
+                    </div>
+                    <div class="filter-row">
+                        <input type="date" id="filterDateFrom" placeholder="开始日期">
+                        <input type="date" id="filterDateTo" placeholder="结束日期">
+                    </div>
+                    <div class="filter-row">
+                        <select id="filterCategory">
+                            <option value="all">全部类别</option>
+                        </select>
+                        <button class="btn btn-sm" id="resetFilters">重置</button>
+                    </div>
+                </div>
+
+                <div id="transactionList">
+                    <div class="empty-state">
+                        <div class="icon">📋</div>
+                        <h3>暂无符合条件的交易</h3>
+                        <p>调整筛选条件或添加新记录</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Assets Page -->
+        <div class="page" id="page-assets">
+            <div class="card">
+                <h3>资产快照</h3>
+                <p class="text-muted" style="margin-bottom: var(--spacing-4);">记录银行卡和储蓄账户余额，追踪资产变化</p>
+
+                <button class="btn btn-lg" style="width: 100%; margin-bottom: var(--spacing-4);" id="addSnapshotBtn">📸 记录快照</button>
+
+                <div id="assetSnapshots">
+                    <div class="empty-state">
+                        <div class="icon">💰</div>
+                        <h3>暂无资产快照</h3>
+                        <p>点击上方按钮记录您的第一个资产快照</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>资产评估</h3>
+                <p class="text-muted" style="margin-bottom: var(--spacing-4);">比较两个时间点的资产变化</p>
+
+                <div class="form-group">
+                    <label>开始时间</label>
+                    <select id="assessmentFrom"></select>
+                </div>
+                <div class="form-group">
+                    <label>结束时间</label>
+                    <select id="assessmentTo"></select>
+                </div>
+                <button class="btn" style="width: 100%;" id="calculateAssessment">计算变化</button>
+
+                <div id="assessmentResult" style="margin-top: var(--spacing-4); display: none;">
+                    <div class="summary-cards">
+                        <div class="summary-card">
+                            <div class="summary-card-label">总资产变化</div>
+                            <div class="summary-card-value font-number" id="assetChange">¥0.00</div>
+                        </div>
+                        <div class="summary-card">
+                            <div class="summary-card-label">日均变化</div>
+                            <div class="summary-card-value font-number" id="dailyChange">¥0.00</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>资产趋势</h3>
+                <div class="chart-container chart-container-sm">
+                    <canvas id="assetChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Statistics Page -->
+        <div class="page" id="page-statistics">
+            <div class="card">
+                <h3>收支统计</h3>
+
+                <div class="filters">
+                    <select id="statsMonth">
+                        <option value="current">本月</option>
+                    </select>
+                </div>
+
+                <div class="summary-cards">
+                    <div class="summary-card income">
+                        <div class="summary-card-label">总收入</div>
+                        <div class="summary-card-value income font-number" id="statsTotalIncome">¥0.00</div>
+                    </div>
+                    <div class="summary-card expense">
+                        <div class="summary-card-label">总支出</div>
+                        <div class="summary-card-value expense font-number" id="statsTotalExpense">¥0.00</div>
+                    </div>
+                    <div class="summary-card">
+                        <div class="summary-card-label">老公支出</div>
+                        <div class="summary-card-value font-number" id="statsHusbandExpense">¥0.00</div>
+                    </div>
+                    <div class="summary-card">
+                        <div class="summary-card-label">老婆支出</div>
+                        <div class="summary-card-value font-number" id="statsWifeExpense">¥0.00</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>支出分类</h3>
+                <div class="chart-container chart-container-sm">
+                    <canvas id="categoryChart"></canvas>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>月度趋势</h3>
+                <div class="chart-container chart-container-sm">
+                    <canvas id="trendChart"></canvas>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>人员对比</h3>
+                <div class="chart-container chart-container-sm">
+                    <canvas id="personChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Data Management Page -->
+        <div class="page" id="page-settings">
+            <div class="card">
+                <h3>数据管理</h3>
+                <p class="text-muted" style="margin-bottom: var(--spacing-4);">导出或导入您的记账数据</p>
+
+                <div style="display: flex; flex-direction: column; gap: var(--spacing-3);">
+                    <button class="btn" id="exportData">📤 导出数据 (JSON)</button>
+                    <button class="btn btn-secondary" id="importBtn">📥 导入数据 (JSON)</button>
+                    <input type="file" id="importFile" accept=".json" style="display: none;">
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>账号</h3>
+                <p class="text-muted" id="userEmail" style="margin-bottom: var(--spacing-3);">未登录</p>
+                <button class="btn btn-danger" style="width: 100%;" id="logoutBtn">退出登录</button>
+            </div>
+
+            <div class="card">
+                <h3>关于</h3>
+                <p class="text-muted">家庭记账本 v1.0</p>
+                <p class="text-muted" style="margin-top: var(--spacing-2);">专为夫妻设计的家庭理财工具</p>
+                <p class="text-muted">数据云端同步，多设备共享</p>
+            </div>
+        </div>
+    </main>
+
+    <!-- Bottom Navigation -->
+    <nav class="bottom-nav">
+        <button class="nav-item active" data-page="dashboard">
+            <span class="icon">🏠</span>
+            <span>首页</span>
+        </button>
+        <button class="nav-item" data-page="add">
+            <span class="icon">➕</span>
+            <span>记账</span>
+        </button>
+        <button class="nav-item" data-page="transactions">
+            <span class="icon">📋</span>
+            <span>明细</span>
+        </button>
+        <button class="nav-item" data-page="assets">
+            <span class="icon">💰</span>
+            <span>资产</span>
+        </button>
+        <button class="nav-item" data-page="statistics">
+            <span class="icon">📊</span>
+            <span>统计</span>
+        </button>
+        <button class="nav-item" data-page="settings">
+            <span class="icon">⚙️</span>
+            <span>设置</span>
+        </button>
+    </nav>
+
+    <!-- Snapshot Modal -->
+    <div class="modal" id="snapshotModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">记录资产快照</h3>
+                <button class="modal-close" id="closeSnapshotModal">&times;</button>
+            </div>
+            <form id="snapshotForm">
+                <div class="form-group">
+                    <label>日期</label>
+                    <input type="date" id="snapshotDate" required>
+                </div>
+                <div class="form-group">
+                    <label>银行卡余额</label>
+                    <input type="number" id="cardBalance" step="0.01" min="0" required placeholder="0.00">
+                </div>
+                <div class="form-group">
+                    <label>储蓄余额</label>
+                    <input type="number" id="savingsBalance" step="0.01" min="0" required placeholder="0.00">
+                </div>
+                <div class="form-group">
+                    <label>备注（可选）</label>
+                    <textarea id="snapshotNote" rows="3" placeholder="添加备注信息"></textarea>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" id="cancelSnapshot">取消</button>
+                    <button type="submit" class="btn">保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Confirmation Modal -->
+    <div class="modal" id="confirmModal">
+        <div class="modal-content" style="max-width: 400px;">
+            <div class="modal-header">
+                <h3 class="modal-title">确认操作</h3>
+                <button class="modal-close" id="closeConfirmModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p id="confirmMessage" style="font-size: 16px; line-height: 1.6;">确定要执行此操作吗？</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" id="confirmCancel">取消</button>
+                <button type="button" class="btn btn-danger" id="confirmOk">确定</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Data Model
+        const STORAGE_KEYS = {
+            transactions: 'family_finance_transactions',
+            snapshots: 'family_finance_snapshots'
+        };
+
+        const EXPENSE_CATEGORIES = [
+            '餐饮', '住房', '水电燃气', '交通出行', '通讯网络', '日用品',
+            '服饰美容', '医疗健康', '教育学习', '娱乐休闲', '人情往来',
+            '孝敬父母', '保险', '大件购置', '旅行出游', '其他支出'
+        ];
+
+        const INCOME_CATEGORIES = [
+            '工资', '奖金', '投资收益', '副业收入', '兼职收入',
+            '理财收益', '礼金红包', '其他收入'
+        ];
+
+        const CATEGORY_EMOJIS = {
+            '餐饮': '🍚', '住房': '🏠', '水电燃气': '💡', '交通出行': '🚗',
+            '通讯网络': '📱', '日用品': '🛍️', '服饰美容': '👗', '医疗健康': '💊',
+            '教育学习': '📚', '娱乐休闲': '🎮', '人情往来': '🎁',
+            '孝敬父母': '👴', '保险': '🛡️', '大件购置': '📺', '旅行出游': '✈️',
+            '其他支出': '📝', '工资': '💰', '奖金': '🎉', '投资收益': '📈',
+            '副业收入': '💼', '兼职收入': '🔨', '理财收益': '🏦',
+            '礼金红包': '🧧', '其他收入': '💵'
+        };
+
+        const SUPABASE_URL = 'https://aglqeevuklpofovrwyjw.supabase.co';
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFnbHFlZXZ1a2xwb2ZvdnJ3eWp3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4NjQzNTIsImV4cCI6MjA5MTQ0MDM1Mn0.RdKXciQIcRWYjjHSgKwfnKvu3MpNeOQ05Q8WWCT_hKE';
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        // State
+        let transactions = [];
+        let snapshots = [];
+        let currentTransactionType = 'expense';
+        let currentCategory = null;
+        let currentPerson = '老公';
+        let charts = {};
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', async () => {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session) {
+                showApp();
+            } else {
+                showLogin();
+            }
+        });
+
+        // Data Management
+        async function loadData() {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) return;
+
+            const { data: transData } = await supabase
+                .from('transactions')
+                .select('*')
+                .order('date', { ascending: false });
+            transactions = (transData || []).map(t => ({
+                ...t,
+                createdAt: t.created_at
+            }));
+
+            const { data: snapData } = await supabase
+                .from('snapshots')
+                .select('*')
+                .order('date', { ascending: true });
+            snapshots = (snapData || []).map(s => ({
+                ...s,
+                cardBalance: Number(s.card_balance),
+                savingsBalance: Number(s.savings_balance),
+                createdAt: s.created_at
+            }));
+        }
+
+        function formatCurrency(amount) {
+            return '¥' + parseFloat(amount).toFixed(2);
+        }
+
+        function formatDate(dateStr) {
+            const date = new Date(dateStr);
+            return date.toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' });
+        }
+
+        function getMonthRange() {
+            const now = new Date();
+            const start = new Date(now.getFullYear(), now.getMonth(), 1);
+            const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+            return { start, end };
+        }
+
+        function getCurrentMonthKey() {
+            const now = new Date();
+            return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+        }
+
+        // Initialize Event Listeners
+        function initializeEventListeners() {
+            // Navigation
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.addEventListener('click', () => {
+                    const page = item.dataset.page;
+                    navigateTo(page);
+                });
+            });
+
+            // Transaction Form
+            document.querySelectorAll('#page-add .toggle-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    currentTransactionType = btn.dataset.type;
+                    document.querySelectorAll('#page-add .toggle-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    updateCategoryDisplay();
+                    clearCategorySelection();
+                });
+            });
+
+            document.querySelectorAll('#page-add .category-item').forEach(item => {
+                item.addEventListener('click', () => {
+                    document.querySelectorAll('#page-add .category-item').forEach(i => i.classList.remove('selected'));
+                    item.classList.add('selected');
+                    currentCategory = item.dataset.category;
+                });
+            });
+
+            document.querySelectorAll('#page-add .person-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    currentPerson = btn.dataset.person;
+                    document.querySelectorAll('#page-add .person-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                });
+            });
+
+            document.getElementById('transactionForm').addEventListener('submit', handleTransactionSubmit);
+
+            // Transaction Filters
+            document.getElementById('filterType').addEventListener('change', filterTransactions);
+            document.getElementById('filterPerson').addEventListener('change', filterTransactions);
+            document.getElementById('filterCategory').addEventListener('change', filterTransactions);
+            document.getElementById('filterDateFrom').addEventListener('change', filterTransactions);
+            document.getElementById('filterDateTo').addEventListener('change', filterTransactions);
+            document.getElementById('resetFilters').addEventListener('click', resetFilters);
+
+            // Snapshot Modal
+            document.getElementById('addSnapshotBtn').addEventListener('click', () => {
+                document.getElementById('snapshotModal').classList.add('active');
+                document.getElementById('snapshotDate').value = new Date().toISOString().split('T')[0];
+            });
+
+            document.getElementById('closeSnapshotModal').addEventListener('click', () => {
+                document.getElementById('snapshotModal').classList.remove('active');
+            });
+
+            document.getElementById('cancelSnapshot').addEventListener('click', () => {
+                document.getElementById('snapshotModal').classList.remove('active');
+            });
+
+            document.getElementById('snapshotForm').addEventListener('submit', handleSnapshotSubmit);
+
+            // Asset Assessment
+            document.getElementById('calculateAssessment').addEventListener('click', calculateAssessment);
+
+            // Statistics
+            document.getElementById('statsMonth').addEventListener('change', updateStatistics);
+
+            // Data Export/Import
+            document.getElementById('exportData').addEventListener('click', exportData);
+            document.getElementById('importBtn').addEventListener('click', () => {
+                document.getElementById('importFile').click();
+            });
+            document.getElementById('importFile').addEventListener('change', importData);
+        }
+
+        function navigateTo(page) {
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+            document.getElementById(`page-${page}`).classList.add('active');
+
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+            document.querySelector(`.nav-item[data-page="${page}"]`).classList.add('active');
+
+            // Update page-specific content
+            if (page === 'dashboard') updateDashboard();
+            if (page === 'transactions') filterTransactions();
+            if (page === 'assets') updateAssets();
+            if (page === 'statistics') updateStatistics();
+        }
+
+        function setDefaultDate() {
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('transactionDate').value = today;
+        }
+
+        function updateCategoryDisplay() {
+            if (currentTransactionType === 'expense') {
+                document.getElementById('expenseCategories').style.display = 'grid';
+                document.getElementById('incomeCategories').style.display = 'none';
+            } else {
+                document.getElementById('expenseCategories').style.display = 'none';
+                document.getElementById('incomeCategories').style.display = 'grid';
+            }
+        }
+
+        function clearCategorySelection() {
+            currentCategory = null;
+            document.querySelectorAll('#page-add .category-item').forEach(i => i.classList.remove('selected'));
+        }
+
+        // Transaction Management
+        async function handleTransactionSubmit(e) {
+            e.preventDefault();
+
+            const amount = parseFloat(document.getElementById('amount').value);
+            const date = document.getElementById('transactionDate').value;
+            const description = document.getElementById('description').value.trim();
+
+            if (!currentCategory) {
+                showToast('请选择类别', 'error');
+                return;
+            }
+
+            const { data: { user } } = await supabase.auth.getUser();
+
+            const { data, error } = await supabase
+                .from('transactions')
+                .insert({
+                    date,
+                    type: currentTransactionType,
+                    category: currentCategory,
+                    amount,
+                    description: description || currentCategory,
+                    person: currentPerson,
+                    user_id: user.id
+                })
+                .select()
+                .single();
+
+            if (error) {
+                showToast('添加失败：' + error.message, 'error');
+                return;
+            }
+
+            transactions.unshift({ ...data, createdAt: data.created_at });
+
+            // Reset form
+            document.getElementById('transactionForm').reset();
+            setDefaultDate();
+            clearCategorySelection();
+
+            showToast('记录添加成功！', 'success');
+            updateDashboard();
+        }
+
+        async function deleteTransaction(id) {
+            if (await showConfirm('确定要删除这条记录吗？')) {
+                const { error } = await supabase
+                    .from('transactions')
+                    .delete()
+                    .eq('id', id);
+
+                if (error) {
+                    showToast('删除失败', 'error');
+                    return;
+                }
+                transactions = transactions.filter(t => t.id !== id);
+                filterTransactions();
+                showToast('记录已删除', 'success');
+            }
+        }
+
+        // Dashboard
+        function updateDashboard() {
+            const { start, end } = getMonthRange();
+
+            const monthTransactions = transactions.filter(t => {
+                const date = new Date(t.date);
+                return date >= start && date <= end;
+            });
+
+            const totalIncome = monthTransactions
+                .filter(t => t.type === 'income')
+                .reduce((sum, t) => sum + t.amount, 0);
+
+            const totalExpense = monthTransactions
+                .filter(t => t.type === 'expense')
+                .reduce((sum, t) => sum + t.amount, 0);
+
+            const husbandExpense = monthTransactions
+                .filter(t => t.type === 'expense' && t.person === '老公')
+                .reduce((sum, t) => sum + t.amount, 0);
+
+            const wifeExpense = monthTransactions
+                .filter(t => t.type === 'expense' && t.person === '老婆')
+                .reduce((sum, t) => sum + t.amount, 0);
+
+            animateValue('monthlyIncome', totalIncome);
+            animateValue('monthlyExpense', totalExpense);
+            animateValue('husbandExpense', husbandExpense);
+            animateValue('wifeExpense', wifeExpense);
+
+            const balance = totalIncome - totalExpense;
+            document.getElementById('headerBalance').textContent = formatCurrency(balance);
+            document.getElementById('headerBalance').className = `header-balance font-number ${balance >= 0 ? 'text-income' : 'text-expense'}`;
+
+            updateRecentTransactions();
+        }
+
+        function animateValue(elementId, value) {
+            const element = document.getElementById(elementId);
+            const duration = 500;
+            const steps = 30;
+            const stepValue = value / steps;
+            let current = 0;
+            let step = 0;
+
+            const timer = setInterval(() => {
+                current += stepValue;
+                step++;
+                element.textContent = formatCurrency(current);
+                element.classList.add('count-up');
+
+                if (step >= steps) {
+                    clearInterval(timer);
+                    element.textContent = formatCurrency(value);
+                }
+            }, duration / steps);
+        }
+
+        function updateRecentTransactions() {
+            const container = document.getElementById('recentTransactions');
+            const recent = transactions.slice(0, 5);
+
+            if (recent.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="icon">📊</div>
+                        <h3>暂无交易记录</h3>
+                        <p>点击下方"记账"按钮开始记录您的第一笔交易</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = recent.map(t => createTransactionItem(t)).join('');
+        }
+
+        function createTransactionItem(t) {
+            const emoji = CATEGORY_EMOJIS[t.category] || '📝';
+            return `
+                <div class="transaction-item" data-id="${t.id}">
+                    <div class="transaction-icon">${emoji}</div>
+                    <div class="transaction-info">
+                        <div class="transaction-category">${t.category}</div>
+                        <div class="transaction-meta">
+                            ${formatDate(t.date)}
+                            <span class="transaction-person">${t.person}</span>
+                        </div>
+                    </div>
+                    <div class="transaction-amount ${t.type}">
+                        ${t.type === 'income' ? '+' : '-'}${formatCurrency(t.amount)}
+                    </div>
+                </div>
+            `;
+        }
+
+        // Transactions
+        function populateFilters() {
+            const categorySelect = document.getElementById('filterCategory');
+            const allCategories = [...EXPENSE_CATEGORIES, ...INCOME_CATEGORIES];
+
+            categorySelect.innerHTML = '<option value="all">全部类别</option>' +
+                allCategories.map(c => `<option value="${c}">${c}</option>`).join('');
+
+            populateMonthFilter();
+        }
+
+        function populateMonthFilter() {
+            const monthSelect = document.getElementById('statsMonth');
+            const months = new Set();
+
+            transactions.forEach(t => {
+                const month = t.date.substring(0, 7);
+                months.add(month);
+            });
+
+            const sortedMonths = Array.from(months).sort().reverse();
+
+            monthSelect.innerHTML = '<option value="current">本月</option>' +
+                sortedMonths.map(m => `<option value="${m}">${m}</option>`).join('');
+        }
+
+        function filterTransactions() {
+            const type = document.getElementById('filterType').value;
+            const person = document.getElementById('filterPerson').value;
+            const category = document.getElementById('filterCategory').value;
+            const dateFrom = document.getElementById('filterDateFrom').value;
+            const dateTo = document.getElementById('filterDateTo').value;
+
+            let filtered = [...transactions];
+
+            if (type !== 'all') {
+                filtered = filtered.filter(t => t.type === type);
+            }
+
+            if (person !== 'all') {
+                filtered = filtered.filter(t => t.person === person);
+            }
+
+            if (category !== 'all') {
+                filtered = filtered.filter(t => t.category === category);
+            }
+
+            if (dateFrom) {
+                filtered = filtered.filter(t => t.date >= dateFrom);
+            }
+
+            if (dateTo) {
+                filtered = filtered.filter(t => t.date <= dateTo);
+            }
+
+            filtered.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+            const container = document.getElementById('transactionList');
+
+            if (filtered.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="icon">📋</div>
+                        <h3>暂无符合条件的交易</h3>
+                        <p>调整筛选条件或添加新记录</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = filtered.map(t => `
+                <div class="transaction-item" data-id="${t.id}">
+                    <div class="transaction-icon">${CATEGORY_EMOJIS[t.category] || '📝'}</div>
+                    <div class="transaction-info">
+                        <div class="transaction-category">${t.category}</div>
+                        <div class="transaction-meta">
+                            ${formatDate(t.date)}
+                            <span class="transaction-person">${t.person}</span>
+                        </div>
+                        ${t.description && t.description !== t.category ? `<div class="text-muted" style="font-size: 11px;">${t.description}</div>` : ''}
+                    </div>
+                    <div class="transaction-amount ${t.type}">
+                        ${t.type === 'income' ? '+' : '-'}${formatCurrency(t.amount)}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function resetFilters() {
+            document.getElementById('filterType').value = 'all';
+            document.getElementById('filterPerson').value = 'all';
+            document.getElementById('filterCategory').value = 'all';
+            document.getElementById('filterDateFrom').value = '';
+            document.getElementById('filterDateTo').value = '';
+            filterTransactions();
+        }
+
+        // Assets
+        function updateAssets() {
+            const container = document.getElementById('assetSnapshots');
+
+            if (snapshots.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="icon">💰</div>
+                        <h3>暂无资产快照</h3>
+                        <p>点击上方按钮记录您的第一个资产快照</p>
+                    </div>
+                `;
+            } else {
+                container.innerHTML = snapshots.map(s => `
+                    <div class="card asset-snapshot" style="margin-bottom: var(--spacing-3);">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <strong>${formatDate(s.date)}</strong>
+                            <button class="btn btn-sm btn-danger" onclick="deleteSnapshot('${s.id}')">删除</button>
+                        </div>
+                        ${s.note ? `<div class="text-muted" style="font-size: 12px; margin-bottom: var(--spacing-2);">${s.note}</div>` : ''}
+                        <div class="snapshot-details">
+                            <div class="snapshot-item">
+                                <div class="snapshot-label">银行卡</div>
+                                <div class="snapshot-value font-number">${formatCurrency(s.cardBalance)}</div>
+                            </div>
+                            <div class="snapshot-item">
+                                <div class="snapshot-label">储蓄</div>
+                                <div class="snapshot-value font-number">${formatCurrency(s.savingsBalance)}</div>
+                            </div>
+                        </div>
+                        <div style="text-align: center; margin-top: var(--spacing-2); padding-top: var(--spacing-2); border-top: 1px solid var(--color-border);">
+                            <span class="text-muted">总资产：</span>
+                            <span class="font-number" style="font-size: 18px; font-weight: 600; color: var(--color-primary);">
+                                ${formatCurrency(s.cardBalance + s.savingsBalance)}
+                            </span>
+                        </div>
+                    </div>
+                `).join('');
+            }
+
+            updateAssetAssessment();
+            updateAssetChart();
+        }
+
+        async function handleSnapshotSubmit(e) {
+            e.preventDefault();
+
+            const date = document.getElementById('snapshotDate').value;
+            const cardBalance = parseFloat(document.getElementById('cardBalance').value);
+            const savingsBalance = parseFloat(document.getElementById('savingsBalance').value);
+            const note = document.getElementById('snapshotNote').value.trim();
+
+            const { data: { user } } = await supabase.auth.getUser();
+
+            const { data, error } = await supabase
+                .from('snapshots')
+                .insert({
+                    date,
+                    card_balance: cardBalance,
+                    savings_balance: savingsBalance,
+                    note,
+                    user_id: user.id
+                })
+                .select()
+                .single();
+
+            if (error) {
+                showToast('保存失败：' + error.message, 'error');
+                return;
+            }
+
+            snapshots.push({
+                ...data,
+                cardBalance: Number(data.card_balance),
+                savingsBalance: Number(data.savings_balance),
+                createdAt: data.created_at
+            });
+            snapshots.sort((a, b) => new Date(a.date) - new Date(b.date));
+
+            document.getElementById('snapshotForm').reset();
+            document.getElementById('snapshotModal').classList.remove('active');
+
+            showToast('资产快照已保存！', 'success');
+            updateAssets();
+        }
+
+        async function deleteSnapshot(id) {
+            if (await showConfirm('确定要删除这个快照吗？')) {
+                const { error } = await supabase
+                    .from('snapshots')
+                    .delete()
+                    .eq('id', id);
+
+                if (error) {
+                    showToast('删除失败', 'error');
+                    return;
+                }
+                snapshots = snapshots.filter(s => s.id !== id);
+                updateAssets();
+                showToast('快照已删除', 'success');
+            }
+        }
+
+        function updateAssetAssessment() {
+            const fromSelect = document.getElementById('assessmentFrom');
+            const toSelect = document.getElementById('assessmentTo');
+
+            const options = snapshots.map(s =>
+                `<option value="${s.id}">${formatDate(s.date)} - ${formatCurrency(s.cardBalance + s.savingsBalance)}</option>`
+            ).join('');
+
+            fromSelect.innerHTML = options || '<option value="">暂无快照</option>';
+            toSelect.innerHTML = options || '<option value="">暂无快照</option>';
+
+            if (snapshots.length >= 2) {
+                toSelect.value = snapshots[snapshots.length - 1].id;
+                fromSelect.value = snapshots[0].id;
+            }
+        }
+
+        function calculateAssessment() {
+            const fromId = document.getElementById('assessmentFrom').value;
+            const toId = document.getElementById('assessmentTo').value;
+
+            if (!fromId || !toId) {
+                showToast('请选择两个快照进行比较', 'error');
+                return;
+            }
+
+            const fromSnapshot = snapshots.find(s => s.id === fromId);
+            const toSnapshot = snapshots.find(s => s.id === toId);
+
+            if (!fromSnapshot || !toSnapshot) {
+                showToast('快照未找到', 'error');
+                return;
+            }
+
+            const fromTotal = fromSnapshot.cardBalance + fromSnapshot.savingsBalance;
+            const toTotal = toSnapshot.cardBalance + toSnapshot.savingsBalance;
+            const change = toTotal - fromTotal;
+
+            const fromDate = new Date(fromSnapshot.date);
+            const toDate = new Date(toSnapshot.date);
+            const days = Math.max(1, Math.ceil((toDate - fromDate) / (1000 * 60 * 60 * 24)));
+            const dailyChange = change / days;
+
+            const changeEl = document.getElementById('assetChange');
+            const dailyChangeEl = document.getElementById('dailyChange');
+
+            changeEl.textContent = (change >= 0 ? '+' : '') + formatCurrency(change);
+            changeEl.className = 'summary-card-value font-number ' + (change >= 0 ? 'text-income' : 'text-expense');
+
+            dailyChangeEl.textContent = (dailyChange >= 0 ? '+' : '') + formatCurrency(dailyChange) + '/天';
+            dailyChangeEl.className = 'summary-card-value font-number ' + (dailyChange >= 0 ? 'text-income' : 'text-expense');
+
+            document.getElementById('assessmentResult').style.display = 'block';
+        }
+
+        function updateAssetChart() {
+            const ctx = document.getElementById('assetChart').getContext('2d');
+
+            if (charts.assetChart) {
+                charts.assetChart.destroy();
+            }
+
+            if (snapshots.length < 2) {
+                ctx.font = '14px var(--font-chinese)';
+                ctx.fillStyle = 'var(--color-text-muted)';
+                ctx.textAlign = 'center';
+                ctx.fillText('需要至少两个快照才能显示趋势', 150, 100);
+                return;
+            }
+
+            const labels = snapshots.map(s => s.date.substring(5));
+            const cardData = snapshots.map(s => s.cardBalance);
+            const savingsData = snapshots.map(s => s.savingsBalance);
+            const totalData = snapshots.map(s => s.cardBalance + s.savingsBalance);
+
+            charts.assetChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels,
+                    datasets: [
+                        {
+                            label: '银行卡',
+                            data: cardData,
+                            borderColor: '#FF6B35',
+                            backgroundColor: 'rgba(255, 107, 53, 0.1)',
+                            tension: 0.4,
+                            fill: true
+                        },
+                        {
+                            label: '储蓄',
+                            data: savingsData,
+                            borderColor: '#2D6A4F',
+                            backgroundColor: 'rgba(45, 106, 79, 0.1)',
+                            tension: 0.4,
+                            fill: true
+                        },
+                        {
+                            label: '总资产',
+                            data: totalData,
+                            borderColor: '#F4A261',
+                            backgroundColor: 'transparent',
+                            tension: 0.4,
+                            borderWidth: 3
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            labels: {
+                                color: 'var(--color-text)',
+                                font: { family: 'var(--font-chinese)' }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            ticks: { color: 'var(--color-text-muted)' },
+                            grid: { color: 'var(--color-border)' }
+                        },
+                        y: {
+                            ticks: { color: 'var(--color-text-muted)' },
+                            grid: { color: 'var(--color-border)' }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Statistics
+        function updateStatistics() {
+            const monthSelect = document.getElementById('statsMonth');
+            let selectedMonth = monthSelect.value;
+
+            let startDate, endDate;
+
+            if (selectedMonth === 'current') {
+                const range = getMonthRange();
+                startDate = range.start;
+                endDate = range.end;
+            } else {
+                const [year, month] = selectedMonth.split('-');
+                startDate = new Date(parseInt(year), parseInt(month) - 1, 1);
+                endDate = new Date(parseInt(year), parseInt(month), 0);
+            }
+
+            const filteredTransactions = transactions.filter(t => {
+                const date = new Date(t.date);
+                return date >= startDate && date <= endDate;
+            });
+
+            const totalIncome = filteredTransactions
+                .filter(t => t.type === 'income')
+                .reduce((sum, t) => sum + t.amount, 0);
+
+            const totalExpense = filteredTransactions
+                .filter(t => t.type === 'expense')
+                .reduce((sum, t) => sum + t.amount, 0);
+
+            const husbandExpense = filteredTransactions
+                .filter(t => t.type === 'expense' && t.person === '老公')
+                .reduce((sum, t) => sum + t.amount, 0);
+
+            const wifeExpense = filteredTransactions
+                .filter(t => t.type === 'expense' && t.person === '老婆')
+                .reduce((sum, t) => sum + t.amount, 0);
+
+            document.getElementById('statsTotalIncome').textContent = formatCurrency(totalIncome);
+            document.getElementById('statsTotalExpense').textContent = formatCurrency(totalExpense);
+            document.getElementById('statsHusbandExpense').textContent = formatCurrency(husbandExpense);
+            document.getElementById('statsWifeExpense').textContent = formatCurrency(wifeExpense);
+
+            updateCategoryChart(filteredTransactions);
+            updateTrendChart();
+            updatePersonChart(filteredTransactions);
+        }
+
+        function updateCategoryChart(filteredTransactions) {
+            const ctx = document.getElementById('categoryChart').getContext('2d');
+
+            if (charts.categoryChart) {
+                charts.categoryChart.destroy();
+            }
+
+            const expenseTransactions = filteredTransactions.filter(t => t.type === 'expense');
+
+            if (expenseTransactions.length === 0) {
+                ctx.font = '14px var(--font-chinese)';
+                ctx.fillStyle = 'var(--color-text-muted)';
+                ctx.textAlign = 'center';
+                ctx.fillText('暂无支出数据', 150, 100);
+                return;
+            }
+
+            const categoryTotals = {};
+            expenseTransactions.forEach(t => {
+                categoryTotals[t.category] = (categoryTotals[t.category] || 0) + t.amount;
+            });
+
+            const sortedCategories = Object.entries(categoryTotals)
+                .sort((a, b) => b[1] - a[1]);
+
+            const labels = sortedCategories.map(([cat]) => cat);
+            const data = sortedCategories.map(([, amount]) => amount);
+
+            const colors = [
+                '#FF6B35', '#2D6A4F', '#F4A261', '#E76F51', '#264653',
+                '#457B9D', '#A8DADC', '#E9C46A', '#2A9D8F', '#E9D8A6',
+                '#D62828', '#F77F00', '#FCBF49', '#EAE2B7', '#003049',
+                '#8D99AE', '#D00000'
+            ];
+
+            charts.categoryChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels,
+                    datasets: [{
+                        data,
+                        backgroundColor: colors.slice(0, labels.length),
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'right',
+                            labels: {
+                                color: 'var(--color-text)',
+                                font: { family: 'var(--font-chinese)', size: 11 },
+                                padding: 8
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateTrendChart() {
+            const ctx = document.getElementById('trendChart').getContext('2d');
+
+            if (charts.trendChart) {
+                charts.trendChart.destroy();
+            }
+
+            const monthlyData = {};
+
+            transactions.forEach(t => {
+                const month = t.date.substring(0, 7);
+                if (!monthlyData[month]) {
+                    monthlyData[month] = { income: 0, expense: 0 };
+                }
+                if (t.type === 'income') {
+                    monthlyData[month].income += t.amount;
+                } else {
+                    monthlyData[month].expense += t.amount;
+                }
+            });
+
+            const sortedMonths = Object.keys(monthlyData).sort().slice(-6);
+
+            if (sortedMonths.length === 0) {
+                ctx.font = '14px var(--font-chinese)';
+                ctx.fillStyle = 'var(--color-text-muted)';
+                ctx.textAlign = 'center';
+                ctx.fillText('暂无数据', 150, 100);
+                return;
+            }
+
+            const labels = sortedMonths.map(m => m.substring(5));
+            const incomeData = sortedMonths.map(m => monthlyData[m].income);
+            const expenseData = sortedMonths.map(m => monthlyData[m].expense);
+
+            charts.trendChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels,
+                    datasets: [
+                        {
+                            label: '收入',
+                            data: incomeData,
+                            backgroundColor: '#2D6A4F'
+                        },
+                        {
+                            label: '支出',
+                            data: expenseData,
+                            backgroundColor: '#E76F51'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            labels: {
+                                color: 'var(--color-text)',
+                                font: { family: 'var(--font-chinese)' }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            ticks: { color: 'var(--color-text-muted)' },
+                            grid: { color: 'var(--color-border)' }
+                        },
+                        y: {
+                            ticks: { color: 'var(--color-text-muted)' },
+                            grid: { color: 'var(--color-border)' }
+                        }
+                    }
+                }
+            });
+        }
+
+        function updatePersonChart(filteredTransactions) {
+            const ctx = document.getElementById('personChart').getContext('2d');
+
+            if (charts.personChart) {
+                charts.personChart.destroy();
+            }
+
+            const husbandExpense = filteredTransactions
+                .filter(t => t.type === 'expense' && t.person === '老公')
+                .reduce((sum, t) => sum + t.amount, 0);
+
+            const wifeExpense = filteredTransactions
+                .filter(t => t.type === 'expense' && t.person === '老婆')
+                .reduce((sum, t) => sum + t.amount, 0);
+
+            if (husbandExpense === 0 && wifeExpense === 0) {
+                ctx.font = '14px var(--font-chinese)';
+                ctx.fillStyle = 'var(--color-text-muted)';
+                ctx.textAlign = 'center';
+                ctx.fillText('暂无支出数据', 150, 100);
+                return;
+            }
+
+            charts.personChart = new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels: ['老公', '老婆'],
+                    datasets: [{
+                        data: [husbandExpense, wifeExpense],
+                        backgroundColor: ['#FF6B35', '#E76F51'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                color: 'var(--color-text)',
+                                font: { family: 'var(--font-chinese)', size: 14 },
+                                padding: 20
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Data Export/Import
+        async function exportData() {
+            const data = {
+                transactions: transactions.map(({ user_id, ...t }) => t),
+                snapshots: snapshots.map(({ user_id, ...s }) => ({
+                    ...s,
+                    card_balance: s.cardBalance,
+                    savings_balance: s.savingsBalance
+                })),
+                exportDate: new Date().toISOString(),
+                version: '2.0'
+            };
+
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `家庭记账本_${new Date().toISOString().split('T')[0]}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            showToast('数据导出成功！', 'success');
+        }
+
+        function importData(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = async (event) => {
+                try {
+                    const data = JSON.parse(event.target.result);
+
+                    if (!data.transactions || !Array.isArray(data.transactions)) {
+                        throw new Error('无效的数据格式');
+                    }
+
+                    if (await showConfirm('导入将覆盖现有数据，确定要继续吗？')) {
+                        const { data: { user } } = await supabase.auth.getUser();
+
+                        // Delete existing data
+                        await supabase.from('transactions').delete().eq('user_id', user.id);
+                        await supabase.from('snapshots').delete().eq('user_id', user.id);
+
+                        // Insert transactions
+                        if (data.transactions.length > 0) {
+                            const transRows = data.transactions.map(t => ({
+                                date: t.date,
+                                type: t.type,
+                                category: t.category,
+                                amount: t.amount,
+                                description: t.description || '',
+                                person: t.person,
+                                user_id: user.id
+                            }));
+                            await supabase.from('transactions').insert(transRows);
+                        }
+
+                        // Insert snapshots
+                        const snapData = data.snapshots || [];
+                        if (snapData.length > 0) {
+                            const snapRows = snapData.map(s => ({
+                                date: s.date,
+                                card_balance: s.cardBalance || s.card_balance || 0,
+                                savings_balance: s.savingsBalance || s.savings_balance || 0,
+                                note: s.note || '',
+                                user_id: user.id
+                            }));
+                            await supabase.from('snapshots').insert(snapRows);
+                        }
+
+                        await loadData();
+                        populateFilters();
+                        updateDashboard();
+                        showToast('数据导入成功！', 'success');
+                    }
+                } catch (error) {
+                    showToast('导入失败：' + error.message, 'error');
+                }
+            };
+            reader.readAsText(file);
+            e.target.value = '';
+        }
+
+        // Custom Confirmation Modal
+        let confirmResolve = null;
+
+        function showConfirm(message) {
+            return new Promise((resolve) => {
+                confirmResolve = resolve;
+                document.getElementById('confirmMessage').textContent = message;
+                document.getElementById('confirmModal').classList.add('active');
+            });
+        }
+
+        function closeConfirmModal(result) {
+            document.getElementById('confirmModal').classList.remove('active');
+            if (confirmResolve) {
+                confirmResolve(result);
+                confirmResolve = null;
+            }
+        }
+
+        // ===== Authentication =====
+        function showLogin() {
+            // Hide main app, show login
+            document.querySelector('header').style.display = 'none';
+            document.querySelector('main').style.display = 'none';
+            document.querySelector('nav.bottom-nav').style.display = 'none';
+
+            let loginDiv = document.getElementById('loginPage');
+            if (!loginDiv) {
+                loginDiv = document.createElement('div');
+                loginDiv.id = 'loginPage';
+                loginDiv.innerHTML = `
+                    <div style="display:flex;align-items:center;justify-content:center;min-height:100vh;padding:24px;">
+                        <div style="width:100%;max-width:400px;">
+                            <div style="text-align:center;margin-bottom:32px;">
+                                <h1 style="font-size:32px;margin-bottom:8px;">🏠 家庭记账本</h1>
+                                <p style="color:var(--color-text-muted);">登录以同步您的数据</p>
+                            </div>
+                            <div class="card">
+                                <div class="form-group">
+                                    <label>邮箱</label>
+                                    <input type="email" id="loginEmail" placeholder="请输入邮箱" required style="width:100%;padding:12px;border-radius:8px;border:1px solid var(--color-border);background:var(--color-surface-light);color:var(--color-text);font-size:16px;">
+                                </div>
+                                <div class="form-group">
+                                    <label>密码</label>
+                                    <input type="password" id="loginPassword" placeholder="请输入密码（至少6位）" required style="width:100%;padding:12px;border-radius:8px;border:1px solid var(--color-border);background:var(--color-surface-light);color:var(--color-text);font-size:16px;">
+                                </div>
+                                <div id="loginError" style="color:var(--color-error);font-size:13px;margin-bottom:12px;display:none;"></div>
+                                <button class="btn btn-lg" style="width:100%;margin-bottom:12px;" id="loginBtn">登录</button>
+                                <button class="btn btn-secondary btn-lg" style="width:100%;margin-bottom:12px;" id="registerBtn">注册新账号</button>
+                                <button class="btn btn-secondary btn-lg" style="width:100%;" id="resetPasswordBtn">忘记密码</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                document.body.appendChild(loginDiv);
+
+                document.getElementById('loginBtn').addEventListener('click', handleLogin);
+                document.getElementById('registerBtn').addEventListener('click', handleRegister);
+                document.getElementById('resetPasswordBtn').addEventListener('click', handleResetPassword);
+                document.getElementById('loginPassword').addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') handleLogin();
+                });
+            }
+            loginDiv.style.display = 'block';
+        }
+
+        async function handleLogin() {
+            const email = document.getElementById('loginEmail').value.trim();
+            const password = document.getElementById('loginPassword').value;
+            const errorEl = document.getElementById('loginError');
+
+            if (!email || !password) {
+                errorEl.textContent = '请填写邮箱和密码';
+                errorEl.style.display = 'block';
+                return;
+            }
+
+            const { error } = await supabase.auth.signInWithPassword({ email, password });
+            if (error) {
+                errorEl.textContent = error.message === 'Invalid login credentials' ? '邮箱或密码错误' : error.message;
+                errorEl.style.display = 'block';
+            } else {
+                showApp();
+            }
+        }
+
+        async function handleRegister() {
+            const email = document.getElementById('loginEmail').value.trim();
+            const password = document.getElementById('loginPassword').value;
+            const errorEl = document.getElementById('loginError');
+
+            if (!email || !password) {
+                errorEl.textContent = '请填写邮箱和密码';
+                errorEl.style.display = 'block';
+                return;
+            }
+
+            if (password.length < 6) {
+                errorEl.textContent = '密码至少6位';
+                errorEl.style.display = 'block';
+                return;
+            }
+
+            const { error } = await supabase.auth.signUp({ email, password });
+            if (error) {
+                errorEl.textContent = error.message;
+                errorEl.style.display = 'block';
+            } else {
+                showToast('注册成功！请查收邮箱确认', 'success');
+            }
+        }
+
+        async function handleResetPassword() {
+            const email = document.getElementById('loginEmail').value.trim();
+            const errorEl = document.getElementById('loginError');
+
+            if (!email) {
+                errorEl.textContent = '请填写邮箱后点击忘记密码';
+                errorEl.style.display = 'block';
+                return;
+            }
+
+            const { error } = await supabase.auth.resetPasswordForEmail(email);
+            if (error) {
+                errorEl.textContent = error.message;
+                errorEl.style.display = 'block';
+            } else {
+                showToast('重置密码邮件已发送', 'success');
+            }
+        }
+
+        let listenersInitialized = false;
+
+        async function showApp() {
+            const loginDiv = document.getElementById('loginPage');
+            if (loginDiv) loginDiv.style.display = 'none';
+
+            document.querySelector('header').style.display = '';
+            document.querySelector('main').style.display = '';
+            document.querySelector('nav.bottom-nav').style.display = '';
+
+            await loadData();
+            if (!listenersInitialized) {
+                initializeEventListeners();
+                listenersInitialized = true;
+            }
+            setDefaultDate();
+            updateDashboard();
+            populateFilters();
+
+            const { data: { user } } = await supabase.auth.getUser();
+            document.getElementById('userEmail').textContent = user ? `已登录：${user.email}` : '未登录';
+
+            const logoutBtn = document.getElementById('logoutBtn');
+            const newLogoutBtn = logoutBtn.cloneNode(true);
+            logoutBtn.parentNode.replaceChild(newLogoutBtn, logoutBtn);
+            newLogoutBtn.addEventListener('click', async () => {
+                if (await showConfirm('确定要退出登录吗？')) {
+                    await supabase.auth.signOut();
+                }
+            });
+        }
+
+        // Auth state change listener
+        supabase.auth.onAuthStateChange((event, session) => {
+            if (event === 'SIGNED_OUT') {
+                showLogin();
+            }
+        });
+
+        // Initialize confirm modal event listeners
+        document.getElementById('closeConfirmModal').addEventListener('click', () => closeConfirmModal(false));
+        document.getElementById('confirmCancel').addEventListener('click', () => closeConfirmModal(false));
+        document.getElementById('confirmOk').addEventListener('click', () => closeConfirmModal(true));
+
+        // Toast Notification
+        function showToast(message, type = 'success') {
+            const existing = document.querySelector('.toast');
+            if (existing) existing.remove();
+
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.textContent = message;
+            document.body.appendChild(toast);
+
+            setTimeout(() => {
+                toast.style.animation = 'slideIn 0.3s ease reverse';
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
