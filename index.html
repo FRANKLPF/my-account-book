@@ -1475,6 +1475,8 @@
             document.getElementById('addSnapshotBtn').addEventListener('click', () => {
                 document.getElementById('snapshotModal').classList.add('active');
                 document.getElementById('snapshotDate').value = new Date().toISOString().split('T')[0];
+                // Pre-fill from last snapshot
+                prefillSnapshotFromLast();
             });
 
             document.getElementById('closeSnapshotModal').addEventListener('click', () => {
@@ -2060,6 +2062,39 @@
                 </div>
             `;
             document.getElementById('savingsTotal').textContent = '¥0.00';
+        }
+
+        function prefillSnapshotFromLast() {
+            if (snapshots.length === 0) return;
+            const last = snapshots[snapshots.length - 1];
+
+            // Prefill cards
+            if (last.cards && last.cards.length > 0) {
+                const cardContainer = document.getElementById('cardInputs');
+                cardContainer.innerHTML = last.cards.map(c => `
+                    <div class="card-input-row" style="display:flex;gap:8px;align-items:center;">
+                        <input type="text" value="${c.name}" placeholder="银行名称" class="card-name" style="flex:1;padding:10px;border-radius:8px;border:1px solid var(--color-border);background:var(--color-surface-light);color:var(--color-text);font-size:14px;">
+                        <input type="number" placeholder="余额" step="0.01" min="0" class="card-balance" style="width:120px;padding:10px;border-radius:8px;border:1px solid var(--color-border);background:var(--color-surface-light);color:var(--color-text);font-size:14px;">
+                        <button type="button" class="btn btn-sm btn-danger remove-card-btn" style="padding:6px 10px;">✕</button>
+                    </div>
+                `).join('');
+                updateRemoveButtons();
+                updateCardsTotal();
+            }
+
+            // Prefill savings
+            if (last.savings && last.savings.length > 0) {
+                const savingsContainer = document.getElementById('savingsInputs');
+                savingsContainer.innerHTML = last.savings.map(s => `
+                    <div class="savings-input-row" style="display:flex;gap:8px;align-items:center;">
+                        <input type="text" value="${s.name}" placeholder="名称（如余额宝）" class="savings-name" style="flex:1;padding:10px;border-radius:8px;border:1px solid var(--color-border);background:var(--color-surface-light);color:var(--color-text);font-size:14px;">
+                        <input type="number" placeholder="余额" step="0.01" min="0" class="savings-balance" style="width:120px;padding:10px;border-radius:8px;border:1px solid var(--color-border);background:var(--color-surface-light);color:var(--color-text);font-size:14px;">
+                        <button type="button" class="btn btn-sm btn-danger remove-savings-btn" style="padding:6px 10px;">✕</button>
+                    </div>
+                `).join('');
+                updateRemoveSavingsButtons();
+                updateSavingsTotal();
+            }
         }
 
         async function deleteSnapshot(id) {
