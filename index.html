@@ -1286,6 +1286,17 @@
         CREATE POLICY "Users can CRUD own snapshots" ON snapshots
           FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
         ALTER TABLE transactions DROP CONSTRAINT IF EXISTS transactions_person_check;
+
+        CREATE TABLE IF NOT EXISTS user_settings (
+          id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+          user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE UNIQUE,
+          settings JSONB DEFAULT '{}',
+          created_at TIMESTAMPTZ DEFAULT NOW(),
+          updated_at TIMESTAMPTZ DEFAULT NOW()
+        );
+        ALTER TABLE user_settings ENABLE ROW LEVEL SECURITY;
+        CREATE POLICY "Users can CRUD own settings" ON user_settings
+          FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
         */
 
         // Data Model
@@ -1342,6 +1353,47 @@
         // Family Member Management
         function saveMembers() {
             localStorage.setItem('familyMembers', JSON.stringify(familyMembers));
+            saveUserSettings(); // async, fire and forget
+        }
+
+        async function loadUserSettings() {
+            const { data: { user } } = await db.auth.getUser();
+            if (!user) return;
+
+            const { data, error } = await db
+                .from('user_settings')
+                .select('settings')
+                .eq('user_id', user.id)
+                .single();
+
+            if (data && data.settings) {
+                if (data.settings.familyMembers && Array.isArray(data.settings.familyMembers)) {
+                    familyMembers = data.settings.familyMembers;
+                    // Also update localStorage cache
+                    localStorage.setItem('familyMembers', JSON.stringify(familyMembers));
+                }
+            }
+        }
+
+        async function saveUserSettings() {
+            const { data: { user } } = await db.auth.getUser();
+            if (!user) return;
+
+            const settings = {
+                familyMembers: familyMembers
+            };
+
+            const { error } = await db
+                .from('user_settings')
+                .upsert({
+                    user_id: user.id,
+                    settings: settings,
+                    updated_at: new Date().toISOString()
+                }, { onConflict: 'user_id' });
+
+            if (error) {
+                console.error('Failed to save settings:', error);
+            }
         }
 
         function renderMemberList() {
@@ -3145,6 +3197,12 @@
             document.querySelector('header').style.display = '';
             document.querySelector('main').style.display = '';
             document.querySelector('nav.bottom-nav').style.display = '';
+
+            await loadUserSettings();
+            // Re-validate currentPerson after loading remote members
+            if (!familyMembers.includes(currentPerson)) {
+                currentPerson = familyMembers[0] || '老公';
+            }
 
             await loadData();
             if (!listenersInitialized) {

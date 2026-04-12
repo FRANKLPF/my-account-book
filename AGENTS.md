@@ -27,12 +27,13 @@ let db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 - **`transactions`**: `id`, `date`, `type` (income/expense), `category`, `amount`, `description`, `person`, `user_id` (FK → auth.users), `created_at`
 - **`snapshots`**: `id`, `date`, `cards` (JSONB array `{name, balance}`), `card_balance`, `savings` (JSONB), `savings_balance`, `total_assets`, `balance_change`, `note`, `user_id`, `created_at`
+- **`user_settings`**: `id`, `user_id` (UNIQUE FK → auth.users), `settings` (JSONB), `created_at`, `updated_at`
 
-Both tables have RLS: `USING (auth.uid() = user_id)`.
+All tables have RLS: `USING (auth.uid() = user_id)`.
 
 ### Local State
 
-- `familyMembers`: stored in `localStorage`, default `["老公","老婆"]`. NOT in Supabase — per-device setting.
+- `familyMembers`: synced via Supabase `user_settings` table (JSONB). `localStorage` used as offline cache. Default `["老公","老婆"]`.
 - `transactions` / `snapshots`: loaded from Supabase on auth, kept in memory.
 
 ### Key JS State Variables (~line 1282)
@@ -96,5 +97,6 @@ git config --global http.version HTTP/1.1
 ## Pending Infrastructure (user action required)
 
 - [ ] Supabase SQL: `DROP TABLE IF EXISTS snapshots CASCADE` + rebuild with current schema (cards JSONB, savings JSONB, balance_change, total_assets)
+- [ ] Supabase SQL: Create `user_settings` table (see SQL comment in code)
 - [ ] Cloudflare Pages: bind custom domain `opensemi.xyz`
 - [ ] `ALTER TABLE transactions DROP CONSTRAINT IF EXISTS transactions_person_check`
