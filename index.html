@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>家庭记账本</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js" defer></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js" defer></script>
     <style>
         :root {
             /* Design Tokens - Colors */
@@ -1263,6 +1262,24 @@
     </div>
 
     <script>
+        // Lazy load Chart.js — only when needed
+        let chartJsLoaded = false;
+        let chartJsPromise = null;
+        function loadChartJs() {
+            if (chartJsLoaded) return Promise.resolve();
+            if (chartJsPromise) return chartJsPromise;
+            chartJsPromise = new Promise((resolve, reject) => {
+                const s = document.createElement('script');
+                s.src = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js';
+                s.onload = () => { chartJsLoaded = true; resolve(); };
+                s.onerror = reject;
+                document.head.appendChild(s);
+            });
+            return chartJsPromise;
+        }
+    </script>
+
+    <script>
         /*
         -- Run in Supabase SQL Editor:
         DROP TABLE IF EXISTS snapshots CASCADE;
@@ -2016,7 +2033,7 @@
         }
 
         // Assets
-        function updateAssets() {
+        async function updateAssets() {
             const container = document.getElementById('assetSnapshots');
 
             if (snapshots.length === 0) {
@@ -2095,7 +2112,7 @@
             }
 
             updateAssetAssessment();
-            updateAssetChart();
+            await updateAssetChart();
         }
 
         function addCardRow() {
@@ -2513,7 +2530,8 @@
             document.getElementById('assessmentResult').style.display = 'block';
         }
 
-        function updateAssetChart() {
+        async function updateAssetChart() {
+            await loadChartJs();
             const ctx = document.getElementById('assetChart').getContext('2d');
 
             if (charts.assetChart) {
@@ -2682,7 +2700,7 @@
         }
 
         // Statistics
-        function updateStatistics() {
+        async function updateStatistics() {
             const monthSelect = document.getElementById('statsMonth');
             let selectedMonth = monthSelect.value;
 
@@ -2728,9 +2746,9 @@
                 }).join('');
             }
 
-            updateCategoryChart(filteredTransactions);
-            updateTrendChart();
-            updatePersonChart(filteredTransactions);
+            await updateCategoryChart(filteredTransactions);
+            await updateTrendChart();
+            await updatePersonChart(filteredTransactions);
             updateDailyCalendar();
             updateReconciliationSummary(startDate, endDate);
         }
@@ -2798,7 +2816,8 @@
             container.innerHTML = html;
         }
 
-        function updateCategoryChart(filteredTransactions) {
+        async function updateCategoryChart(filteredTransactions) {
+            await loadChartJs();
             const ctx = document.getElementById('categoryChart').getContext('2d');
 
             if (charts.categoryChart) {
@@ -2860,7 +2879,8 @@
             });
         }
 
-        function updateTrendChart() {
+        async function updateTrendChart() {
+            await loadChartJs();
             const ctx = document.getElementById('trendChart').getContext('2d');
 
             if (charts.trendChart) {
@@ -2938,7 +2958,8 @@
             });
         }
 
-        function updatePersonChart(filteredTransactions) {
+        async function updatePersonChart(filteredTransactions) {
+            await loadChartJs();
             const ctx = document.getElementById('personChart').getContext('2d');
 
             if (charts.personChart) {
