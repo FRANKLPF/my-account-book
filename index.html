@@ -4,9 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>家庭记账本</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600;700&family=Oswald:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js" defer></script>
     <style>
@@ -31,9 +28,9 @@
             --color-focus: rgba(255, 107, 53, 0.3);
 
             /* Design Tokens - Typography */
-            --font-chinese: 'Noto Sans SC', 'PingFang SC', 'Hiragino Sans GB', system-ui, -apple-system, sans-serif;
-            --font-number: 'Oswald', 'Noto Sans SC', sans-serif;
-            --font-display: 'Oswald', sans-serif;
+            --font-chinese: 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', system-ui, -apple-system, sans-serif;
+            --font-number: 'Menlo', 'Consolas', 'Monaco', monospace;
+            --font-display: system-ui, -apple-system, sans-serif;
 
             /* Design Tokens - Spacing */
             --spacing-1: 4px;
@@ -287,19 +284,7 @@
             color: white;
             margin-bottom: 0;
             position: relative;
-            font-size: 18px;
-            display: inline;
-        }
-
-        .header-balance {
-            color: white;
-            font-family: var(--font-number);
-            font-size: 28px;
-            font-weight: 700;
-            margin-bottom: 0;
-            position: relative;
-            display: inline;
-            margin-left: var(--spacing-4);
+            font-size: 22px;
         }
 
         .header-sub {
@@ -775,9 +760,8 @@
 
     <!-- Header -->
     <header style="display:none;">
-        <div class="container" style="display:flex;align-items:center;justify-content:space-between;">
+        <div class="container">
             <h1>家庭记账本</h1>
-            <div class="header-balance font-number" id="headerBalance">¥0.00</div>
         </div>
     </header>
 
@@ -1845,8 +1829,7 @@
             }
 
             const balance = totalIncome - totalExpense;
-            document.getElementById('headerBalance').textContent = formatCurrency(balance);
-            document.getElementById('headerBalance').className = `header-balance font-number ${balance >= 0 ? 'text-income' : 'text-expense'}`;
+            document.title = `家庭记账本 | ${formatCurrency(balance)}`;
 
             updateRecentTransactions();
         }
