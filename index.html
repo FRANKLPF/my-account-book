@@ -1041,6 +1041,19 @@
         <!-- Statistics Page -->
         <div class="page" id="page-statistics">
             <div class="card">
+                <h3>每日收支日历</h3>
+                <div class="filters" style="margin-bottom:var(--spacing-3);">
+                    <select id="calendarMonth">
+                        <option value="current">本月</option>
+                    </select>
+                </div>
+                <div id="dailyCalendar" style="font-size:12px;"></div>
+                <div style="display:flex;gap:var(--spacing-3);margin-top:var(--spacing-2);justify-content:center;">
+                    <span style="font-size:11px;color:var(--color-text-muted);">🟢 收入 &nbsp; 🔴 支出 &nbsp; 数字=净额(元)</span>
+                </div>
+            </div>
+
+            <div class="card">
                 <h3>收支统计</h3>
 
                 <div class="filters">
@@ -1516,6 +1529,7 @@
 
             // Statistics
             document.getElementById('statsMonth').addEventListener('change', updateStatistics);
+            document.getElementById('calendarMonth').addEventListener('change', updateDailyCalendar);
 
             // Data Export/Import
             document.getElementById('exportData').addEventListener('click', exportData);
@@ -1740,6 +1754,7 @@
 
         function populateMonthFilter() {
             const monthSelect = document.getElementById('statsMonth');
+            const calendarMonthSelect = document.getElementById('calendarMonth');
             const months = new Set();
 
             transactions.forEach(t => {
@@ -1748,9 +1763,11 @@
             });
 
             const sortedMonths = Array.from(months).sort().reverse();
-
-            monthSelect.innerHTML = '<option value="current">本月</option>' +
+            const options = '<option value="current">本月</option>' +
                 sortedMonths.map(m => `<option value="${m}">${m}</option>`).join('');
+
+            monthSelect.innerHTML = options;
+            if (calendarMonthSelect) calendarMonthSelect.innerHTML = options;
         }
 
         function filterTransactions() {
@@ -2246,6 +2263,87 @@
             });
         }
 
+        // Daily Calendar
+        function updateDailyCalendar() {
+            const monthSelect = document.getElementById('calendarMonth');
+            let selectedMonth = monthSelect.value;
+            let year, month;
+
+            if (selectedMonth === 'current') {
+                const now = new Date();
+                year = now.getFullYear();
+                month = now.getMonth();
+            } else {
+                [year, month] = selectedMonth.split('-').map(Number);
+                month -= 1;
+            }
+
+            const firstDay = new Date(year, month, 1);
+            const lastDay = new Date(year, month + 1, 0);
+            const startWeekday = firstDay.getDay(); // 0=Sun
+            const totalDays = lastDay.getDate();
+
+            // Aggregate daily data
+            const dailyData = {};
+            transactions.forEach(t => {
+                const d = t.date;
+                const dt = new Date(d);
+                if (dt.getFullYear() === year && dt.getMonth() === month) {
+                    if (!dailyData[d]) dailyData[d] = { income: 0, expense: 0 };
+                    if (t.type === 'income') dailyData[d].income += t.amount;
+                    else dailyData[d].expense += t.amount;
+                }
+            });
+
+            const weekdays = ['日', '一', '二', '三', '四', '五', '六'];
+            let html = '<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;text-align:center;">';
+
+            // Header row
+            weekdays.forEach(w => {
+                html += `<div style="padding:4px;font-weight:600;color:var(--color-text-muted);font-size:11px;">${w}</div>`;
+            });
+
+            // Empty cells before first day
+            for (let i = 0; i < startWeekday; i++) {
+                html += '<div style="padding:6px 2px;min-height:48px;"></div>';
+            }
+
+            // Day cells
+            for (let day = 1; day <= totalDays; day++) {
+                const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                const data = dailyData[dateStr];
+                const net = data ? data.income - data.expense : 0;
+                const hasData = data && (data.income > 0 || data.expense > 0);
+
+                let bgColor = 'var(--color-surface-light)';
+                let textColor = 'var(--color-text)';
+                if (hasData) {
+                    if (net > 0) {
+                        bgColor = 'rgba(45, 106, 79, 0.15)';
+                        textColor = 'var(--color-income)';
+                    } else if (net < 0) {
+                        bgColor = 'rgba(231, 111, 81, 0.15)';
+                        textColor = 'var(--color-expense)';
+                    }
+                }
+
+                const isToday = dateStr === new Date().toISOString().split('T')[0];
+                const border = isToday ? 'border:2px solid var(--color-primary);' : '';
+
+                html += `<div style="padding:4px 2px;min-height:48px;border-radius:6px;background:${bgColor};${border}">`;
+                html += `<div style="font-size:12px;font-weight:${isToday ? '700' : '400'};color:${isToday ? 'var(--color-primary)' : 'var(--color-text)'};">${day}</div>`;
+                if (hasData) {
+                    html += `<div style="font-size:10px;color:${textColor};line-height:1.2;">${net >= 0 ? '+' : ''}${net.toFixed(0)}</div>`;
+                    if (data.income > 0) html += `<div style="font-size:9px;color:var(--color-income);">↑${data.income.toFixed(0)}</div>`;
+                    if (data.expense > 0) html += `<div style="font-size:9px;color:var(--color-expense);">↓${data.expense.toFixed(0)}</div>`;
+                }
+                html += '</div>';
+            }
+
+            html += '</div>';
+            document.getElementById('dailyCalendar').innerHTML = html;
+        }
+
         // Statistics
         function updateStatistics() {
             const monthSelect = document.getElementById('statsMonth');
@@ -2296,6 +2394,7 @@
             updateCategoryChart(filteredTransactions);
             updateTrendChart();
             updatePersonChart(filteredTransactions);
+            updateDailyCalendar();
         }
 
         function updateCategoryChart(filteredTransactions) {
