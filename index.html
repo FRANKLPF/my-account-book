@@ -607,7 +607,7 @@
             padding: var(--spacing-6);
             max-width: 500px;
             width: 100%;
-            max-height: 80vh;
+            max-height: 90vh;
             overflow-y: auto;
         }
 
@@ -797,6 +797,11 @@
 
         <!-- Add Record Page -->
         <div class="page" id="page-add">
+            <div id="firstSnapshotNotice" class="card" style="display:none;border:2px solid var(--color-warning);background:rgba(244,162,97,0.1);">
+                <h4 style="color:var(--color-warning);">⚠️ 请先记录资产快照</h4>
+                <p class="text-muted">开始记账前，请先在「资产」页面记录一次资产快照作为基准</p>
+                <button type="button" class="btn" onclick="navigateTo('assets')" style="margin-top:8px;">前往记录快照</button>
+            </div>
             <div class="card">
                 <h3>添加记录</h3>
                 <form id="transactionForm">
@@ -1015,17 +1020,10 @@
                             <div class="summary-card-label">总资产变化</div>
                             <div class="summary-card-value font-number" id="assetChange">¥0.00</div>
                         </div>
-                    <div class="summary-card">
-                        <div class="summary-card-label">本月收入</div>
-                        <div class="summary-card-value income font-number" id="monthlyIncome">¥0.00</div>
-                    </div>
-                    <div class="summary-card expense">
-                        <div class="summary-card-label">本月支出</div>
-                        <div class="summary-card-value expense font-number" id="monthlyExpense">¥0.00</div>
-                    </div>
-                </div>
-                <div id="dashboardPersonCards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:var(--spacing-2);margin-top:var(--spacing-2);">
-                </div>
+                        <div class="summary-card">
+                            <div class="summary-card-label">日均变化</div>
+                            <div class="summary-card-value font-number" id="dailyChange">¥0.00</div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1095,6 +1093,11 @@
                 <div class="chart-container chart-container-sm">
                     <canvas id="personChart"></canvas>
                 </div>
+            </div>
+
+            <div class="card">
+                <h3>资产统计差额</h3>
+                <div id="reconciliationSummary" style="margin-bottom:var(--spacing-4);"></div>
             </div>
         </div>
 
@@ -1213,6 +1216,25 @@
                     </div>
                 </div>
                 <div class="form-group">
+                    <label>负债</label>
+                    <div id="liabilityInputs" style="display:flex;flex-direction:column;gap:8px;">
+                        <div class="liability-input-row" style="display:flex;gap:8px;align-items:center;">
+                            <input type="text" placeholder="名称（如信用卡、贷款）" class="liability-name" style="flex:1;padding:10px;border-radius:8px;border:1px solid var(--color-border);background:var(--color-surface-light);color:var(--color-text);font-size:14px;">
+                            <input type="number" placeholder="金额" step="0.01" min="0" class="liability-amount" style="width:120px;padding:10px;border-radius:8px;border:1px solid var(--color-border);background:var(--color-surface-light);color:var(--color-text);font-size:14px;">
+                            <button type="button" class="btn btn-sm btn-danger remove-liability-btn" style="padding:6px 10px;display:none;">✕</button>
+                        </div>
+                    </div>
+                    <button type="button" class="btn btn-sm btn-secondary" id="addLiabilityBtn" style="margin-top:8px;width:100%;">+ 添加负债</button>
+                    <div style="margin-top:8px;padding:8px;border-radius:8px;background:var(--color-surface-light);text-align:right;">
+                        <span class="text-muted" style="font-size:13px;">负债合计：</span>
+                        <span class="font-number" id="liabilitiesTotal" style="font-size:16px;font-weight:600;color:var(--color-error);">¥0.00</span>
+                    </div>
+                </div>
+                <div style="margin-top:12px;padding:12px;border-radius:8px;background:var(--color-surface);text-align:right;border:2px solid var(--color-primary);">
+                    <span style="font-size:14px;font-weight:600;">净资产 = 正资产 - 负债：</span>
+                    <span class="font-number" id="netAssetsTotal" style="font-size:20px;font-weight:700;color:var(--color-primary);">¥0.00</span>
+                </div>
+                <div class="form-group">
                     <label>备注（可选）</label>
                     <textarea id="snapshotNote" rows="3" placeholder="添加备注信息"></textarea>
                 </div>
@@ -1242,6 +1264,30 @@
     </div>
 
     <script>
+        /*
+        -- Run in Supabase SQL Editor:
+        DROP TABLE IF EXISTS snapshots CASCADE;
+        CREATE TABLE snapshots (
+          id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+          date DATE NOT NULL,
+          cards JSONB DEFAULT '[]',
+          card_balance NUMERIC(12,2) NOT NULL DEFAULT 0,
+          savings JSONB DEFAULT '[]',
+          savings_balance NUMERIC(12,2) NOT NULL DEFAULT 0,
+          liabilities JSONB DEFAULT '[]',
+          liabilities_balance NUMERIC(12,2) NOT NULL DEFAULT 0,
+          total_assets NUMERIC(12,2) NOT NULL DEFAULT 0,
+          balance_change NUMERIC(12,2) NOT NULL DEFAULT 0,
+          note TEXT DEFAULT '',
+          user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+          created_at TIMESTAMPTZ DEFAULT NOW()
+        );
+        ALTER TABLE snapshots ENABLE ROW LEVEL SECURITY;
+        CREATE POLICY "Users can CRUD own snapshots" ON snapshots
+          FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+        ALTER TABLE transactions DROP CONSTRAINT IF EXISTS transactions_person_check;
+        */
+
         // Data Model
         const STORAGE_KEYS = {
             transactions: 'family_finance_transactions',
@@ -1266,7 +1312,8 @@
             '孝敬父母': '👴', '保险': '🛡️', '大件购置': '📺', '旅行出游': '✈️',
             '其他支出': '📝', '工资': '💰', '奖金': '🎉', '投资收益': '📈',
             '副业收入': '💼', '兼职收入': '🔨', '理财收益': '🏦',
-            '礼金红包': '🧧', '其他收入': '💵'
+            '礼金红包': '🧧', '其他收入': '💵',
+            '资产统计正差': '📊', '资产统计负差': '📉'
         };
 
         const SUPABASE_URL = 'https://aglqeevuklpofovrwyjw.supabase.co';
@@ -1408,8 +1455,10 @@
                 ...s,
                 cards: s.cards || [],
                 savings: s.savings || [],
+                liabilities: s.liabilities || [],
                 cardBalance: Number(s.card_balance),
                 savingsBalance: Number(s.savings_balance),
+                liabilitiesBalance: Number(s.liabilities_balance || 0),
                 totalAssets: s.total_assets ? Number(s.total_assets) : null,
                 balanceChange: s.balance_change !== null && s.balance_change !== undefined ? Number(s.balance_change) : null,
                 createdAt: s.created_at
@@ -1521,8 +1570,29 @@
                     e.target.closest('.savings-input-row').remove();
                     updateRemoveSavingsButtons();
                     updateSavingsTotal();
+                    updateNetAssetsTotal();
                 }
             });
+            // Savings input also updates net assets
+            document.getElementById('savingsInputs').addEventListener('input', updateNetAssetsTotal);
+
+            // Multi-liability inputs
+            document.getElementById('addLiabilityBtn').addEventListener('click', addLiabilityRow);
+            document.getElementById('liabilityInputs').addEventListener('input', () => {
+                updateLiabilitiesTotal();
+                updateNetAssetsTotal();
+            });
+            document.getElementById('liabilityInputs').addEventListener('click', (e) => {
+                if (e.target.classList.contains('remove-liability-btn')) {
+                    e.target.closest('.liability-input-row').remove();
+                    updateRemoveLiabilityButtons();
+                    updateLiabilitiesTotal();
+                    updateNetAssetsTotal();
+                }
+            });
+
+            // Card input also updates net assets
+            document.getElementById('cardInputs').addEventListener('input', updateNetAssetsTotal);
 
             // Asset Assessment
             document.getElementById('calculateAssessment').addEventListener('click', calculateAssessment);
@@ -1576,6 +1646,12 @@
         // Transaction Management
         async function handleTransactionSubmit(e) {
             e.preventDefault();
+
+            if (snapshots.length === 0) {
+                showToast('请先记录一次资产快照，才能开始记账', 'error');
+                navigateTo('assets');
+                return;
+            }
 
             const amount = parseFloat(document.getElementById('amount').value);
             const date = document.getElementById('transactionDate').value;
@@ -1641,7 +1717,7 @@
 
             const monthTransactions = transactions.filter(t => {
                 const date = new Date(t.date);
-                return date >= start && date <= end;
+                return date >= start && date <= end && t.person !== '资产统计';
             });
 
             const totalIncome = monthTransactions
@@ -1717,14 +1793,18 @@
 
         function createTransactionItem(t) {
             const emoji = CATEGORY_EMOJIS[t.category] || '📝';
+            const isReconciliation = t.person === '资产统计';
+            const personBadge = isReconciliation
+                ? `<span class="transaction-person" style="background:rgba(244,162,97,0.2);color:var(--color-warning);">资产统计</span>`
+                : `<span class="transaction-person">${t.person}</span>`;
             return `
-                <div class="transaction-item" data-id="${t.id}">
+                <div class="transaction-item" data-id="${t.id}" ${isReconciliation ? 'style="background:rgba(244,162,97,0.05);"' : ''}>
                     <div class="transaction-icon">${emoji}</div>
                     <div class="transaction-info">
                         <div class="transaction-category">${t.category}</div>
                         <div class="transaction-meta">
                             ${formatDate(t.date)}
-                            <span class="transaction-person">${t.person}</span>
+                            ${personBadge}
                         </div>
                     </div>
                     <div class="transaction-amount ${t.type}">
@@ -1742,11 +1822,16 @@
             categorySelect.innerHTML = '<option value="all">全部类别</option>' +
                 allCategories.map(c => `<option value="${c}">${c}</option>`).join('');
 
-            // Dynamic person filter
+            // Dynamic person filter (include 资产统计 for filtering reconciliation transactions)
             const personSelect = document.getElementById('filterPerson');
             if (personSelect) {
+                const allPersons = [...familyMembers];
+                // Add 资产统计 if any reconciliation transactions exist
+                if (transactions.some(t => t.person === '资产统计')) {
+                    allPersons.push('资产统计');
+                }
                 personSelect.innerHTML = '<option value="all">全部人员</option>' +
-                    familyMembers.map(m => `<option value="${m}">${m}</option>`).join('');
+                    allPersons.map(m => `<option value="${m}">${m}</option>`).join('');
             }
 
             populateMonthFilter();
@@ -1814,14 +1899,20 @@
                 return;
             }
 
-            container.innerHTML = filtered.map(t => `
-                <div class="transaction-item" data-id="${t.id}">
-                    <div class="transaction-icon">${CATEGORY_EMOJIS[t.category] || '📝'}</div>
+            container.innerHTML = filtered.map(t => {
+                const emoji = CATEGORY_EMOJIS[t.category] || '📝';
+                const isReconciliation = t.person === '资产统计';
+                const personBadge = isReconciliation
+                    ? `<span class="transaction-person" style="background:rgba(244,162,97,0.2);color:var(--color-warning);">资产统计</span>`
+                    : `<span class="transaction-person">${t.person}</span>`;
+                return `
+                <div class="transaction-item" data-id="${t.id}" ${isReconciliation ? 'style="background:rgba(244,162,97,0.05);"' : ''}>
+                    <div class="transaction-icon">${emoji}</div>
                     <div class="transaction-info">
                         <div class="transaction-category">${t.category}</div>
                         <div class="transaction-meta">
                             ${formatDate(t.date)}
-                            <span class="transaction-person">${t.person}</span>
+                            ${personBadge}
                         </div>
                         ${t.description && t.description !== t.category ? `<div class="text-muted" style="font-size: 11px;">${t.description}</div>` : ''}
                     </div>
@@ -1829,7 +1920,8 @@
                         ${t.type === 'income' ? '+' : '-'}${formatCurrency(t.amount)}
                     </div>
                 </div>
-            `).join('');
+            `;
+            }).join('');
         }
 
         function resetFilters() {
@@ -1854,9 +1946,10 @@
                     </div>
                 `;
             } else {
-                container.innerHTML = snapshots.map(s => {
-                    const total = s.totalAssets || (s.cardBalance + s.savingsBalance);
+                container.innerHTML = snapshots.slice().reverse().map(s => {
+                    const total = s.totalAssets || (s.cardBalance + s.savingsBalance - s.liabilitiesBalance);
                     const cards = s.cards || [];
+                    const liabilities = s.liabilities || [];
                     const changeHtml = s.balanceChange !== undefined && s.balanceChange !== null
                         ? `<div style="text-align:right;font-size:13px;margin-bottom:4px;">
                             <span class="text-muted">较上次：</span>
@@ -1875,6 +1968,25 @@
                             <div class="snapshot-label">银行卡</div>
                             <div class="snapshot-value font-number">${formatCurrency(s.cardBalance)}</div>
                            </div>`;
+                    const savingsHtml = (s.savings && s.savings.length > 0)
+                        ? s.savings.map(sv => `
+                            <div style="display:flex;justify-content:space-between;padding:4px 0;font-size:13px;">
+                                <span class="text-muted">${sv.name}</span>
+                                <span class="font-number">${formatCurrency(sv.balance)}</span>
+                            </div>
+                        `).join('')
+                        : `<div class="snapshot-item">
+                            <div class="snapshot-label">储蓄</div>
+                            <div class="snapshot-value font-number">${formatCurrency(s.savingsBalance)}</div>
+                          </div>`;
+                    const liabilitiesHtml = liabilities.length > 0
+                        ? liabilities.map(l => `
+                            <div style="display:flex;justify-content:space-between;padding:4px 0;font-size:13px;">
+                                <span style="color:var(--color-error);">${l.name}</span>
+                                <span class="font-number" style="color:var(--color-error);">-${formatCurrency(l.amount)}</span>
+                            </div>
+                        `).join('')
+                        : '';
                     return `
                         <div class="card asset-snapshot" style="margin-bottom: var(--spacing-3);">
                             <div style="display: flex; justify-content: space-between; align-items: center;">
@@ -1885,23 +1997,15 @@
                             ${changeHtml}
                             <div class="snapshot-details">
                                 ${cardsHtml}
-                                ${(s.savings && s.savings.length > 0) 
-                                    ? s.savings.map(sv => `
-                                        <div style="display:flex;justify-content:space-between;padding:4px 0;font-size:13px;">
-                                            <span class="text-muted">${sv.name}</span>
-                                            <span class="font-number">${formatCurrency(sv.balance)}</span>
-                                        </div>
-                                    `).join('')
-                                    : `<div class="snapshot-item">
-                                        <div class="snapshot-label">储蓄</div>
-                                        <div class="snapshot-value font-number">${formatCurrency(s.savingsBalance)}</div>
-                                      </div>`}
+                                ${savingsHtml}
+                                ${liabilitiesHtml}
                             </div>
                             <div style="text-align: center; margin-top: var(--spacing-2); padding-top: var(--spacing-2); border-top: 1px solid var(--color-border);">
-                                <span class="text-muted">总资产：</span>
+                                <span class="text-muted">净资产：</span>
                                 <span class="font-number" style="font-size: 18px; font-weight: 600; color: var(--color-primary);">
                                     ${formatCurrency(total)}
                                 </span>
+                                ${s.liabilitiesBalance > 0 ? `<div style="font-size:12px;color:var(--color-text-muted);margin-top:2px;">正资产 ${formatCurrency(s.cardBalance + s.savingsBalance)} - 负债 ${formatCurrency(s.liabilitiesBalance)}</div>` : ''}
                             </div>
                         </div>
                     `;
@@ -2002,13 +2106,25 @@
                 }
             });
 
-            const totalAssets = cardTotal + savingsTotal;
+            // Collect liability data
+            const liabilities = [];
+            let liabilitiesTotal = 0;
+            document.querySelectorAll('#liabilityInputs .liability-input-row').forEach(row => {
+                const name = row.querySelector('.liability-name').value.trim() || '负债';
+                const amount = parseFloat(row.querySelector('.liability-amount').value) || 0;
+                if (amount > 0 || name !== '负债') {
+                    liabilities.push({ name, amount });
+                    liabilitiesTotal += amount;
+                }
+            });
+
+            const totalAssets = cardTotal + savingsTotal - liabilitiesTotal;
 
             // Calculate balance change from last snapshot
             let balanceChange = 0;
             if (snapshots.length > 0) {
                 const lastSnapshot = snapshots[snapshots.length - 1];
-                const lastTotal = (lastSnapshot.totalAssets || (lastSnapshot.cardBalance + lastSnapshot.savingsBalance));
+                const lastTotal = (lastSnapshot.totalAssets || (lastSnapshot.cardBalance + lastSnapshot.savingsBalance - lastSnapshot.liabilitiesBalance));
                 balanceChange = totalAssets - lastTotal;
             }
 
@@ -2022,6 +2138,8 @@
                     card_balance: cardTotal,
                     savings: savings,
                     savings_balance: savingsTotal,
+                    liabilities: liabilities,
+                    liabilities_balance: liabilitiesTotal,
                     total_assets: totalAssets,
                     balance_change: balanceChange,
                     note,
@@ -2035,23 +2153,66 @@
                 return;
             }
 
-            snapshots.push({
+            const savedSnapshot = {
                 ...data,
                 cards: data.cards || [],
                 savings: data.savings || [],
+                liabilities: data.liabilities || [],
                 cardBalance: Number(data.card_balance),
                 savingsBalance: Number(data.savings_balance),
+                liabilitiesBalance: Number(data.liabilities_balance || 0),
                 totalAssets: Number(data.total_assets),
                 balanceChange: Number(data.balance_change),
                 createdAt: data.created_at
-            });
+            };
+            snapshots.push(savedSnapshot);
             snapshots.sort((a, b) => new Date(a.date) - new Date(b.date));
+
+            // Auto-generate reconciliation transaction
+            if (snapshots.length >= 2) {
+                const previousSnapshot = snapshots[snapshots.length - 2];
+                const currentSnapshot = savedSnapshot;
+                const previousTotal = previousSnapshot.totalAssets || (previousSnapshot.cardBalance + previousSnapshot.savingsBalance - previousSnapshot.liabilitiesBalance);
+                const assetDifference = totalAssets - previousTotal;
+
+                const transactionSum = transactions
+                    .filter(t => t.date > previousSnapshot.date && t.date <= currentSnapshot.date && t.person !== '资产统计')
+                    .reduce((sum, t) => sum + (t.type === 'income' ? t.amount : -t.amount), 0);
+
+                const unexplained = assetDifference - transactionSum;
+
+                if (Math.abs(unexplained) > 0.01) {
+                    const reconCategory = unexplained > 0 ? '资产统计正差' : '资产统计负差';
+                    const { data: reconData, error: reconError } = await db
+                        .from('transactions')
+                        .insert({
+                            date: currentSnapshot.date,
+                            type: unexplained > 0 ? 'income' : 'expense',
+                            category: reconCategory,
+                            amount: Math.abs(unexplained),
+                            description: `${previousSnapshot.date} ~ ${currentSnapshot.date} 资产差额`,
+                            person: '资产统计',
+                            user_id: user.id
+                        })
+                        .select()
+                        .single();
+
+                    if (!reconError && reconData) {
+                        transactions.unshift({ ...reconData, createdAt: reconData.created_at });
+                        showToast(`资产统计差额已自动记录：${formatCurrency(Math.abs(unexplained))}`, 'success');
+                    }
+                }
+            }
 
             document.getElementById('snapshotForm').reset();
             document.getElementById('snapshotModal').classList.remove('active');
-            // Reset to single card/savings row
+            // Reset to single card/savings/liability row
             resetCardInputs();
             resetSavingsInputs();
+            resetLiabilityInputs();
+
+            // Update first snapshot notice
+            updateFirstSnapshotNotice();
 
             showToast('资产快照已保存！', 'success');
             updateAssets();
@@ -2079,6 +2240,73 @@
                 </div>
             `;
             document.getElementById('savingsTotal').textContent = '¥0.00';
+        }
+
+        function addLiabilityRow() {
+            const container = document.getElementById('liabilityInputs');
+            const row = document.createElement('div');
+            row.className = 'liability-input-row';
+            row.style.cssText = 'display:flex;gap:8px;align-items:center;';
+            row.innerHTML = `
+                <input type="text" placeholder="名称（如信用卡、贷款）" class="liability-name" style="flex:1;padding:10px;border-radius:8px;border:1px solid var(--color-border);background:var(--color-surface-light);color:var(--color-text);font-size:14px;">
+                <input type="number" placeholder="金额" step="0.01" min="0" class="liability-amount" style="width:120px;padding:10px;border-radius:8px;border:1px solid var(--color-border);background:var(--color-surface-light);color:var(--color-text);font-size:14px;">
+                <button type="button" class="btn btn-sm btn-danger remove-liability-btn" style="padding:6px 10px;">✕</button>
+            `;
+            container.appendChild(row);
+            updateRemoveLiabilityButtons();
+        }
+
+        function updateRemoveLiabilityButtons() {
+            const rows = document.querySelectorAll('#liabilityInputs .liability-input-row');
+            rows.forEach(row => {
+                const btn = row.querySelector('.remove-liability-btn');
+                btn.style.display = rows.length > 1 ? 'inline-block' : 'none';
+            });
+        }
+
+        function updateLiabilitiesTotal() {
+            let total = 0;
+            document.querySelectorAll('#liabilityInputs .liability-amount').forEach(input => {
+                total += parseFloat(input.value) || 0;
+            });
+            document.getElementById('liabilitiesTotal').textContent = '¥' + total.toFixed(2);
+        }
+
+        function updateNetAssetsTotal() {
+            let cardsTotal = 0;
+            document.querySelectorAll('#cardInputs .card-balance').forEach(input => {
+                cardsTotal += parseFloat(input.value) || 0;
+            });
+            let savings = 0;
+            document.querySelectorAll('#savingsInputs .savings-balance').forEach(input => {
+                savings += parseFloat(input.value) || 0;
+            });
+            let liabilities = 0;
+            document.querySelectorAll('#liabilityInputs .liability-amount').forEach(input => {
+                liabilities += parseFloat(input.value) || 0;
+            });
+            const net = cardsTotal + savings - liabilities;
+            document.getElementById('netAssetsTotal').textContent = '¥' + net.toFixed(2);
+        }
+
+        function resetLiabilityInputs() {
+            const container = document.getElementById('liabilityInputs');
+            container.innerHTML = `
+                <div class="liability-input-row" style="display:flex;gap:8px;align-items:center;">
+                    <input type="text" placeholder="名称（如信用卡、贷款）" class="liability-name" style="flex:1;padding:10px;border-radius:8px;border:1px solid var(--color-border);background:var(--color-surface-light);color:var(--color-text);font-size:14px;">
+                    <input type="number" placeholder="金额" step="0.01" min="0" class="liability-amount" style="width:120px;padding:10px;border-radius:8px;border:1px solid var(--color-border);background:var(--color-surface-light);color:var(--color-text);font-size:14px;">
+                    <button type="button" class="btn btn-sm btn-danger remove-liability-btn" style="padding:6px 10px;display:none;">✕</button>
+                </div>
+            `;
+            document.getElementById('liabilitiesTotal').textContent = '¥0.00';
+            document.getElementById('netAssetsTotal').textContent = '¥0.00';
+        }
+
+        function updateFirstSnapshotNotice() {
+            const notice = document.getElementById('firstSnapshotNotice');
+            if (notice) {
+                notice.style.display = snapshots.length === 0 ? 'block' : 'none';
+            }
         }
 
         function prefillSnapshotFromLast() {
@@ -2112,6 +2340,22 @@
                 updateRemoveSavingsButtons();
                 updateSavingsTotal();
             }
+
+            // Prefill liabilities
+            if (last.liabilities && last.liabilities.length > 0) {
+                const liabilityContainer = document.getElementById('liabilityInputs');
+                liabilityContainer.innerHTML = last.liabilities.map(l => `
+                    <div class="liability-input-row" style="display:flex;gap:8px;align-items:center;">
+                        <input type="text" value="${l.name}" placeholder="名称（如信用卡、贷款）" class="liability-name" style="flex:1;padding:10px;border-radius:8px;border:1px solid var(--color-border);background:var(--color-surface-light);color:var(--color-text);font-size:14px;">
+                        <input type="number" placeholder="金额" step="0.01" min="0" class="liability-amount" style="width:120px;padding:10px;border-radius:8px;border:1px solid var(--color-border);background:var(--color-surface-light);color:var(--color-text);font-size:14px;">
+                        <button type="button" class="btn btn-sm btn-danger remove-liability-btn" style="padding:6px 10px;">✕</button>
+                    </div>
+                `).join('');
+                updateRemoveLiabilityButtons();
+                updateLiabilitiesTotal();
+            }
+
+            updateNetAssetsTotal();
         }
 
         async function deleteSnapshot(id) {
@@ -2136,7 +2380,7 @@
             const toSelect = document.getElementById('assessmentTo');
 
             const options = snapshots.map(s => {
-                const total = s.totalAssets || (s.cardBalance + s.savingsBalance);
+                const total = s.totalAssets || (s.cardBalance + s.savingsBalance - (s.liabilitiesBalance || 0));
                 return `<option value="${s.id}">${formatDate(s.date)} - ${formatCurrency(total)}</option>`;
             }).join('');
 
@@ -2166,8 +2410,8 @@
                 return;
             }
 
-            const fromTotal = fromSnapshot.totalAssets || (fromSnapshot.cardBalance + fromSnapshot.savingsBalance);
-            const toTotal = toSnapshot.totalAssets || (toSnapshot.cardBalance + toSnapshot.savingsBalance);
+            const fromTotal = fromSnapshot.totalAssets || (fromSnapshot.cardBalance + fromSnapshot.savingsBalance - (fromSnapshot.liabilitiesBalance || 0));
+            const toTotal = toSnapshot.totalAssets || (toSnapshot.cardBalance + toSnapshot.savingsBalance - (toSnapshot.liabilitiesBalance || 0));
             const change = toTotal - fromTotal;
 
             const fromDate = new Date(fromSnapshot.date);
@@ -2205,7 +2449,8 @@
             const labels = snapshots.map(s => s.date.substring(5));
             const cardData = snapshots.map(s => s.cardBalance);
             const savingsData = snapshots.map(s => s.savingsBalance);
-            const totalData = snapshots.map(s => s.cardBalance + s.savingsBalance);
+            const liabilityData = snapshots.map(s => (s.liabilitiesBalance || 0));
+            const totalData = snapshots.map(s => s.cardBalance + s.savingsBalance - (s.liabilitiesBalance || 0));
 
             charts.assetChart = new Chart(ctx, {
                 type: 'line',
@@ -2229,7 +2474,16 @@
                             fill: true
                         },
                         {
-                            label: '总资产',
+                            label: '负债',
+                            data: liabilityData,
+                            borderColor: '#E76F51',
+                            backgroundColor: 'rgba(231, 111, 81, 0.1)',
+                            tension: 0.4,
+                            fill: true,
+                            borderDash: [5, 5]
+                        },
+                        {
+                            label: '净资产',
                             data: totalData,
                             borderColor: '#F4A261',
                             backgroundColor: 'transparent',
@@ -2286,6 +2540,7 @@
             // Aggregate daily data
             const dailyData = {};
             transactions.forEach(t => {
+                if (t.person === '资产统计') return;
                 const d = t.date;
                 const dt = new Date(d);
                 if (dt.getFullYear() === year && dt.getMonth() === month) {
@@ -2363,7 +2618,7 @@
 
             const filteredTransactions = transactions.filter(t => {
                 const date = new Date(t.date);
-                return date >= startDate && date <= endDate;
+                return date >= startDate && date <= endDate && t.person !== '资产统计';
             });
 
             const totalIncome = filteredTransactions
@@ -2377,10 +2632,10 @@
             document.getElementById('statsTotalIncome').textContent = formatCurrency(totalIncome);
             document.getElementById('statsTotalExpense').textContent = formatCurrency(totalExpense);
 
-            // Dynamic per-person stats cards
+            // Dynamic per-person stats cards (exclude 资产统计)
             const statsPersonCards = document.getElementById('statsPersonCards');
             if (statsPersonCards) {
-                statsPersonCards.innerHTML = familyMembers.map(member => {
+                statsPersonCards.innerHTML = familyMembers.filter(m => m !== '资产统计').map(member => {
                     const memberExpense = filteredTransactions
                         .filter(t => t.type === 'expense' && t.person === member)
                         .reduce((sum, t) => sum + t.amount, 0);
@@ -2395,6 +2650,70 @@
             updateTrendChart();
             updatePersonChart(filteredTransactions);
             updateDailyCalendar();
+            updateReconciliationSummary(startDate, endDate);
+        }
+
+        function updateReconciliationSummary(startDate, endDate) {
+            const container = document.getElementById('reconciliationSummary');
+            if (!container) return;
+
+            // Get all reconciliation transactions (not filtered by person)
+            const allInRange = transactions.filter(t => {
+                const date = new Date(t.date);
+                return date >= startDate && date <= endDate;
+            });
+
+            const reconTransactions = allInRange.filter(t => t.person === '资产统计');
+
+            if (reconTransactions.length === 0) {
+                container.innerHTML = '<p class="text-muted" style="text-align:center;">该时段暂无资产统计差额记录</p>';
+                return;
+            }
+
+            const positiveTotal = reconTransactions
+                .filter(t => t.category === '资产统计正差')
+                .reduce((sum, t) => sum + t.amount, 0);
+            const negativeTotal = reconTransactions
+                .filter(t => t.category === '资产统计负差')
+                .reduce((sum, t) => sum + t.amount, 0);
+            const netDiff = positiveTotal - negativeTotal;
+
+            let html = `
+                <div class="summary-cards" style="margin-bottom:var(--spacing-3);">
+                    <div class="summary-card">
+                        <div class="summary-card-label">正差合计</div>
+                        <div class="summary-card-value font-number" style="color:var(--color-income);">${formatCurrency(positiveTotal)}</div>
+                    </div>
+                    <div class="summary-card">
+                        <div class="summary-card-label">负差合计</div>
+                        <div class="summary-card-value font-number" style="color:var(--color-expense);">${formatCurrency(negativeTotal)}</div>
+                    </div>
+                </div>
+                <div style="text-align:center;margin-bottom:var(--spacing-3);padding:8px;border-radius:8px;background:var(--color-surface-light);">
+                    <span class="text-muted">净差额：</span>
+                    <span class="font-number" style="font-size:18px;font-weight:600;color:${netDiff >= 0 ? 'var(--color-income)' : 'var(--color-expense)'};">${netDiff >= 0 ? '+' : ''}${formatCurrency(netDiff)}</span>
+                </div>
+            `;
+
+            html += '<div style="max-height:200px;overflow-y:auto;">';
+            reconTransactions.sort((a, b) => new Date(b.date) - new Date(a.date)).forEach(t => {
+                const isPositive = t.category === '资产统计正差';
+                html += `
+                    <div class="transaction-item" style="padding:8px 0;">
+                        <div class="transaction-icon" style="font-size:24px;margin-right:var(--spacing-2);">${isPositive ? '📊' : '📉'}</div>
+                        <div class="transaction-info">
+                            <div class="transaction-category" style="font-size:13px;">${t.description || t.category}</div>
+                            <div class="transaction-meta">${formatDate(t.date)}</div>
+                        </div>
+                        <div class="transaction-amount ${isPositive ? 'income' : 'expense'}" style="font-size:16px;">
+                            ${isPositive ? '+' : '-'}${formatCurrency(t.amount)}
+                        </div>
+                    </div>
+                `;
+            });
+            html += '</div>';
+
+            container.innerHTML = html;
         }
 
         function updateCategoryChart(filteredTransactions) {
@@ -2469,6 +2788,7 @@
             const monthlyData = {};
 
             transactions.forEach(t => {
+                if (t.person === '资产统计') return;
                 const month = t.date.substring(0, 7);
                 if (!monthlyData[month]) {
                     monthlyData[month] = { income: 0, expense: 0 };
@@ -2548,6 +2868,7 @@
             const data = [];
 
             familyMembers.forEach(member => {
+                if (member === '资产统计') return;
                 const memberExpense = filteredTransactions
                     .filter(t => t.type === 'expense' && t.person === member)
                     .reduce((sum, t) => sum + t.amount, 0);
@@ -2598,7 +2919,8 @@
                 snapshots: snapshots.map(({ user_id, ...s }) => ({
                     ...s,
                     card_balance: s.cardBalance,
-                    savings_balance: s.savingsBalance
+                    savings_balance: s.savingsBalance,
+                    liabilities_balance: s.liabilitiesBalance
                 })),
                 exportDate: new Date().toISOString(),
                 version: '2.0'
@@ -2656,8 +2978,14 @@
                         if (snapData.length > 0) {
                             const snapRows = snapData.map(s => ({
                                 date: s.date,
+                                cards: s.cards || [],
                                 card_balance: s.cardBalance || s.card_balance || 0,
+                                savings: s.savings || [],
                                 savings_balance: s.savingsBalance || s.savings_balance || 0,
+                                liabilities: s.liabilities || [],
+                                liabilities_balance: s.liabilitiesBalance || s.liabilities_balance || 0,
+                                total_assets: s.totalAssets || s.total_assets || 0,
+                                balance_change: s.balanceChange || s.balance_change || 0,
                                 note: s.note || '',
                                 user_id: user.id
                             }));
@@ -2826,6 +3154,7 @@
             setDefaultDate();
             updateDashboard();
             populateFilters();
+            updateFirstSnapshotNotice();
 
             // Render member management
             renderMemberList();
