@@ -1106,6 +1106,16 @@
             </div>
 
             <div class="card">
+                <h3>家庭成员</h3>
+                <p class="text-muted" style="margin-bottom: var(--spacing-3);">管理记账成员</p>
+                <div id="memberList" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:var(--spacing-3);"></div>
+                <div style="display:flex;gap:8px;">
+                    <input type="text" id="newMemberName" placeholder="输入成员名称" style="flex:1;padding:10px;border-radius:8px;border:1px solid var(--color-border);background:var(--color-surface-light);color:var(--color-text);font-size:14px;">
+                    <button class="btn" id="addMemberBtn">添加</button>
+                </div>
+            </div>
+
+            <div class="card">
                 <h3>账号</h3>
                 <p class="text-muted" id="userEmail" style="margin-bottom: var(--spacing-3);">未登录</p>
                 <button class="btn btn-danger" style="width: 100%;" id="logoutBtn">退出登录</button>
@@ -1267,8 +1277,75 @@
         let snapshots = [];
         let currentTransactionType = 'expense';
         let currentCategory = null;
-        let currentPerson = '老公';
+        let currentPerson = '';
         let charts = {};
+        let familyMembers = JSON.parse(localStorage.getItem('familyMembers') || '["老公","老婆"]');
+
+        // Ensure currentPerson is valid
+        if (!familyMembers.includes(currentPerson) || currentPerson === '') {
+            currentPerson = familyMembers[0] || '老公';
+        }
+
+        // Family Member Management
+        function saveMembers() {
+            localStorage.setItem('familyMembers', JSON.stringify(familyMembers));
+        }
+
+        function renderMemberList() {
+            const container = document.getElementById('memberList');
+            if (!container) return;
+            container.innerHTML = familyMembers.map(m => `
+                <div style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:20px;background:var(--color-surface-light);border:1px solid var(--color-border);font-size:13px;">
+                    <span>${m}</span>
+                    ${familyMembers.length > 1 ? `<button type="button" onclick="removeMember('${m}')" style="background:none;border:none;color:var(--color-error);cursor:pointer;font-size:14px;padding:0;line-height:1;">✕</button>` : ''}
+                </div>
+            `).join('');
+        }
+
+        function renderPersonSelector() {
+            const container = document.querySelector('#page-add .person-selector');
+            if (!container) return;
+            container.innerHTML = familyMembers.map(m =>
+                `<button type="button" class="person-btn ${m === currentPerson ? 'active' : ''}" data-person="${m}">${m}</button>`
+            ).join('');
+            // Re-bind click events
+            container.querySelectorAll('.person-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    currentPerson = btn.dataset.person;
+                    container.querySelectorAll('.person-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                });
+            });
+        }
+
+        function addMember(name) {
+            name = name.trim();
+            if (!name) return;
+            if (familyMembers.includes(name)) {
+                showToast('该成员已存在', 'error');
+                return;
+            }
+            familyMembers.push(name);
+            saveMembers();
+            renderMemberList();
+            renderPersonSelector();
+            showToast(`已添加成员：${name}`, 'success');
+        }
+
+        function removeMember(name) {
+            if (familyMembers.length <= 1) {
+                showToast('至少保留一个成员', 'error');
+                return;
+            }
+            familyMembers = familyMembers.filter(m => m !== name);
+            saveMembers();
+            if (currentPerson === name) {
+                currentPerson = familyMembers[0];
+            }
+            renderMemberList();
+            renderPersonSelector();
+            showToast(`已移除成员：${name}`, 'success');
+        }
 
         // Initialize
         document.addEventListener('DOMContentLoaded', async () => {
@@ -2584,6 +2661,25 @@
             setDefaultDate();
             updateDashboard();
             populateFilters();
+
+            // Render member management
+            renderMemberList();
+            renderPersonSelector();
+            const addMemberInput = document.getElementById('newMemberName');
+            const newAddMemberInput = addMemberInput.cloneNode(true);
+            addMemberInput.parentNode.replaceChild(newAddMemberInput, addMemberInput);
+            document.getElementById('addMemberBtn').addEventListener('click', () => {
+                const name = document.getElementById('newMemberName').value;
+                addMember(name);
+                document.getElementById('newMemberName').value = '';
+            });
+            document.getElementById('newMemberName').addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    const name = document.getElementById('newMemberName').value;
+                    addMember(name);
+                    document.getElementById('newMemberName').value = '';
+                }
+            });
 
             const { data: { user } } = await db.auth.getUser();
             document.getElementById('userEmail').textContent = user ? `已登录：${user.email}` : '未登录';
