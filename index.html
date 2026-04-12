@@ -4,9 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>家庭记账本</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600;700&family=Oswald:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js" defer></script>
     <style>
         :root {
             /* Design Tokens - Colors */
@@ -262,10 +264,10 @@
         /* Header */
         header {
             background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
-            padding: var(--spacing-6) var(--spacing-4);
-            border-radius: 0 0 var(--radius-xl) var(--radius-xl);
-            margin-bottom: var(--spacing-6);
-            box-shadow: var(--shadow-lg);
+            padding: var(--spacing-3) var(--spacing-4);
+            border-radius: 0 0 var(--radius-md) var(--radius-md);
+            margin-bottom: var(--spacing-3);
+            box-shadow: var(--shadow-md);
             position: relative;
             overflow: hidden;
         }
@@ -283,17 +285,21 @@
 
         header h1 {
             color: white;
-            margin-bottom: var(--spacing-2);
+            margin-bottom: 0;
             position: relative;
+            font-size: 18px;
+            display: inline;
         }
 
         .header-balance {
             color: white;
             font-family: var(--font-number);
-            font-size: 48px;
+            font-size: 28px;
             font-weight: 700;
-            margin-bottom: var(--spacing-2);
+            margin-bottom: 0;
             position: relative;
+            display: inline;
+            margin-left: var(--spacing-4);
         }
 
         .header-sub {
@@ -757,12 +763,21 @@
     </style>
 </head>
 <body>
+    <!-- Loading Screen (shown immediately, hidden by JS) -->
+    <div id="loadingScreen" style="position:fixed;top:0;left:0;right:0;bottom:0;background:var(--color-background);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;">
+        <div style="font-size:48px;margin-bottom:16px;">🏠</div>
+        <div style="color:var(--color-text);font-size:18px;font-weight:600;margin-bottom:16px;">家庭记账本</div>
+        <div style="width:120px;height:4px;background:var(--color-surface-light);border-radius:2px;overflow:hidden;">
+            <div style="width:40%;height:100%;background:var(--color-primary);border-radius:2px;animation:loadingBar 1s ease-in-out infinite;"></div>
+        </div>
+        <style>@keyframes loadingBar{0%{transform:translateX(-100%)}100%{transform:translateX(350%)}}</style>
+    </div>
+
     <!-- Header -->
     <header style="display:none;">
-        <div class="container">
+        <div class="container" style="display:flex;align-items:center;justify-content:space-between;">
             <h1>家庭记账本</h1>
             <div class="header-balance font-number" id="headerBalance">¥0.00</div>
-            <div class="header-sub">本月收支概况</div>
         </div>
     </header>
 
@@ -1330,10 +1345,13 @@
         const SUPABASE_URL = 'https://aglqeevuklpofovrwyjw.supabase.co';
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFnbHFlZXZ1a2xwb2ZvdnJ3eWp3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU4NjQzNTIsImV4cCI6MjA5MTQ0MDM1Mn0.RdKXciQIcRWYjjHSgKwfnKvu3MpNeOQ05Q8WWCT_hKE';
         let db = null;
-        if (window.supabase && window.supabase.createClient) {
-            db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-        } else {
-            console.error('Supabase SDK not loaded');
+
+        function initSupabase() {
+            if (window.supabase && window.supabase.createClient) {
+                db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+                return true;
+            }
+            return false;
         }
 
         // State
@@ -1471,11 +1489,37 @@
         }
 
         // Initialize
-        document.addEventListener('DOMContentLoaded', async () => {
+        function hideLoadingScreen() {
+            const ls = document.getElementById('loadingScreen');
+            if (ls) ls.style.display = 'none';
+        }
+
+        async function initApp() {
+            // Wait for defer scripts to load
+            if (!initSupabase()) {
+                // Scripts not yet loaded, wait a bit
+                await new Promise(resolve => {
+                    const check = setInterval(() => {
+                        if (initSupabase()) { clearInterval(check); resolve(); }
+                    }, 50);
+                    // Timeout after 10s
+                    setTimeout(() => { clearInterval(check); resolve(); }, 10000);
+                });
+            }
+            if (!db) {
+                hideLoadingScreen();
+                document.body.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100vh;color:#f8f9fa;font-size:18px;">加载失败，请检查网络后刷新页面</div>';
+                return;
+            }
             try {
+                db.auth.onAuthStateChange((event, session) => {
+                    if (event === 'SIGNED_OUT') {
+                        showLogin();
+                    }
+                });
                 const { data: { session } } = await db.auth.getSession();
                 if (session) {
-                    showApp();
+                    await showApp();
                 } else {
                     showLogin();
                 }
@@ -1483,7 +1527,10 @@
                 console.error('Supabase init error:', e);
                 showLogin();
             }
-        });
+            hideLoadingScreen();
+        }
+
+        document.addEventListener('DOMContentLoaded', initApp);
 
         // Data Management
         async function loadData() {
@@ -3263,13 +3310,6 @@
                 }
             });
         }
-
-        // Auth state change listener
-        db.auth.onAuthStateChange((event, session) => {
-            if (event === 'SIGNED_OUT') {
-                showLogin();
-            }
-        });
 
         // Initialize confirm modal event listeners
         document.getElementById('closeConfirmModal').addEventListener('click', () => closeConfirmModal(false));
