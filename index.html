@@ -1325,11 +1325,27 @@
             showToast(`已添加成员：${name}`, 'success');
         }
 
-        function removeMember(name) {
+        async function removeMember(name) {
             if (familyMembers.length <= 1) {
                 showToast('至少保留一个成员', 'error');
                 return;
             }
+            if (!await showConfirm(`移除「${name}」后，该成员的所有记账记录也将被删除，确定吗？`)) {
+                return;
+            }
+            // Delete all transactions for this member from Supabase
+            const { data: { user } } = await db.auth.getUser();
+            const { error } = await db
+                .from('transactions')
+                .delete()
+                .eq('user_id', user.id)
+                .eq('person', name);
+            if (error) {
+                showToast('删除记录失败：' + error.message, 'error');
+                return;
+            }
+            // Remove from local state
+            transactions = transactions.filter(t => t.person !== name);
             familyMembers = familyMembers.filter(m => m !== name);
             saveMembers();
             if (currentPerson === name) {
@@ -1337,7 +1353,9 @@
             }
             renderMemberList();
             renderPersonSelector();
-            showToast(`已移除成员：${name}`, 'success');
+            updateDashboard();
+            populateFilters();
+            showToast(`已移除成员「${name}」及其所有记录`, 'success');
         }
 
         // Initialize
