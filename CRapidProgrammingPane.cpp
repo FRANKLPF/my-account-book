@@ -117,6 +117,8 @@ void CRapidProgrammingPane::DeleteRapidProgrammingControls()
 	{
 		m_wndOutlookBar.DestroyWindow();
 	}
+
+	//中国人名
 }
 
 void CRapidProgrammingPane::UpdataPartProperties()
