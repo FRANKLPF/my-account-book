@@ -434,6 +434,10 @@
             background-color: var(--color-surface-light);
         }
 
+        .transaction-item:hover .transaction-actions button {
+            opacity: 1 !important;
+        }
+
         .transaction-icon {
             font-size: 32px;
             margin-right: var(--spacing-4);
@@ -1244,6 +1248,149 @@
         </div>
     </div>
 
+    <!-- Edit Transaction Modal -->
+    <div class="modal" id="editTransactionModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">编辑记录</h3>
+                <button class="modal-close" id="closeEditTransactionModal">&times;</button>
+            </div>
+            <form id="editTransactionForm">
+                <input type="hidden" id="editTransactionId">
+                <div class="form-group">
+                    <label>类型</label>
+                    <div class="toggle-container">
+                        <button type="button" class="toggle-btn active" data-type="expense" id="editTypeExpense">支出</button>
+                        <button type="button" class="toggle-btn" data-type="income" id="editTypeIncome">收入</button>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>金额</label>
+                    <input type="number" id="editAmount" step="0.01" min="0.01" required placeholder="请输入金额" style="font-size: 20px; font-weight: 600;">
+                </div>
+                <div class="form-group">
+                    <label>类别</label>
+                    <div class="category-grid" id="editExpenseCategories">
+                        <button type="button" class="category-item" data-category="餐饮">
+                            <span class="emoji">🍚</span>
+                            <span class="name">餐饮</span>
+                        </button>
+                        <button type="button" class="category-item" data-category="住房">
+                            <span class="emoji">🏠</span>
+                            <span class="name">住房</span>
+                        </button>
+                        <button type="button" class="category-item" data-category="交通出行">
+                            <span class="emoji">🚗</span>
+                            <span class="name">交通</span>
+                        </button>
+                        <button type="button" class="category-item" data-category="服饰美容">
+                            <span class="emoji">👗</span>
+                            <span class="name">服饰</span>
+                        </button>
+                        <button type="button" class="category-item" data-category="日用品">
+                            <span class="emoji">🛍️</span>
+                            <span class="name">日用</span>
+                        </button>
+                        <button type="button" class="category-item" data-category="娱乐休闲">
+                            <span class="emoji">🎮</span>
+                            <span class="name">娱乐</span>
+                        </button>
+                        <button type="button" class="category-item" data-category="医疗健康">
+                            <span class="emoji">💊</span>
+                            <span class="name">医疗</span>
+                        </button>
+                        <button type="button" class="category-item" data-category="教育学习">
+                            <span class="emoji">📚</span>
+                            <span class="name">教育</span>
+                        </button>
+                        <button type="button" class="category-item" data-category="人情往来">
+                            <span class="emoji">🎁</span>
+                            <span class="name">人情</span>
+                        </button>
+                        <button type="button" class="category-item" data-category="孝敬父母">
+                            <span class="emoji">👴</span>
+                            <span class="name">孝敬</span>
+                        </button>
+                        <button type="button" class="category-item" data-category="保险">
+                            <span class="emoji">🛡️</span>
+                            <span class="name">保险</span>
+                        </button>
+                        <button type="button" class="category-item" data-category="旅行出游">
+                            <span class="emoji">✈️</span>
+                            <span class="name">旅行</span>
+                        </button>
+                        <button type="button" class="category-item" data-category="大件购置">
+                            <span class="emoji">📺</span>
+                            <span class="name">大件</span>
+                        </button>
+                        <button type="button" class="category-item" data-category="通讯网络">
+                            <span class="emoji">📱</span>
+                            <span class="name">通讯</span>
+                        </button>
+                        <button type="button" class="category-item" data-category="水电燃气">
+                            <span class="emoji">💡</span>
+                            <span class="name">水电</span>
+                        </button>
+                        <button type="button" class="category-item" data-category="其他支出">
+                            <span class="emoji">📝</span>
+                            <span class="name">其他</span>
+                        </button>
+                    </div>
+                    <div class="category-grid" id="editIncomeCategories" style="display: none;">
+                        <button type="button" class="category-item" data-category="工资">
+                            <span class="emoji">💰</span>
+                            <span class="name">工资</span>
+                        </button>
+                        <button type="button" class="category-item" data-category="奖金">
+                            <span class="emoji">🎉</span>
+                            <span class="name">奖金</span>
+                        </button>
+                        <button type="button" class="category-item" data-category="投资收益">
+                            <span class="emoji">📈</span>
+                            <span class="name">投资</span>
+                        </button>
+                        <button type="button" class="category-item" data-category="副业收入">
+                            <span class="emoji">💼</span>
+                            <span class="name">副业</span>
+                        </button>
+                        <button type="button" class="category-item" data-category="兼职收入">
+                            <span class="emoji">🔨</span>
+                            <span class="name">兼职</span>
+                        </button>
+                        <button type="button" class="category-item" data-category="理财收益">
+                            <span class="emoji">🏦</span>
+                            <span class="name">理财</span>
+                        </button>
+                        <button type="button" class="category-item" data-category="礼金红包">
+                            <span class="emoji">🧧</span>
+                            <span class="name">礼金</span>
+                        </button>
+                        <button type="button" class="category-item" data-category="其他收入">
+                            <span class="emoji">💵</span>
+                            <span class="name">其他</span>
+                        </button>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>日期</label>
+                    <input type="date" id="editDate" required>
+                </div>
+                <div class="form-group">
+                    <label>记录人</label>
+                    <div class="person-selector" id="editPersonSelector"></div>
+                </div>
+                <div class="form-group">
+                    <label>备注（可选）</label>
+                    <input type="text" id="editDescription" placeholder="添加备注信息">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" id="cancelEditTransaction">取消</button>
+                    <button type="submit" class="btn">保存修改</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- Confirmation Modal -->
     <div class="modal" id="confirmModal">
         <div class="modal-content" style="max-width: 400px;">
@@ -1707,6 +1854,114 @@
                 document.getElementById('importFile').click();
             });
             document.getElementById('importFile').addEventListener('change', importData);
+
+            // Edit Transaction Modal
+            document.getElementById('closeEditTransactionModal').addEventListener('click', () => {
+                document.getElementById('editTransactionModal').classList.remove('active');
+                editingTransactionId = null;
+            });
+            document.getElementById('cancelEditTransaction').addEventListener('click', () => {
+                document.getElementById('editTransactionModal').classList.remove('active');
+                editingTransactionId = null;
+            });
+
+            // Edit type toggle
+            document.querySelectorAll('#editTransactionModal .toggle-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    document.querySelectorAll('#editTransactionModal .toggle-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    const type = btn.dataset.type;
+                    document.getElementById('editExpenseCategories').style.display = type === 'expense' ? 'grid' : 'none';
+                    document.getElementById('editIncomeCategories').style.display = type === 'income' ? 'grid' : 'none';
+                });
+            });
+
+            // Edit category selection
+            ['editExpenseCategories', 'editIncomeCategories'].forEach(containerId => {
+                document.getElementById(containerId).addEventListener('click', (e) => {
+                    const item = e.target.closest('.category-item');
+                    if (!item) return;
+                    document.getElementById(containerId).querySelectorAll('.category-item').forEach(b => b.classList.remove('selected'));
+                    item.classList.add('selected');
+                });
+            });
+
+            // Edit person selection
+            document.getElementById('editPersonSelector').addEventListener('click', (e) => {
+                const btn = e.target.closest('.person-btn');
+                if (!btn) return;
+                document.querySelectorAll('#editPersonSelector .person-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+            });
+
+            // Edit form submit
+            document.getElementById('editTransactionForm').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                if (!editingTransactionId) return;
+
+                const { data: { user } } = await db.auth.getUser();
+                if (!user) return;
+
+                const isExpense = document.querySelector('#editTransactionModal .toggle-btn.active').dataset.type === 'expense';
+                const amount = parseFloat(document.getElementById('editAmount').value);
+                const date = document.getElementById('editDate').value;
+                const description = document.getElementById('editDescription').value.trim();
+
+                const categoryContainer = isExpense
+                    ? document.getElementById('editExpenseCategories')
+                    : document.getElementById('editIncomeCategories');
+                const selectedCat = categoryContainer.querySelector('.category-item.selected');
+                const category = selectedCat ? selectedCat.dataset.category : null;
+
+                const selectedPerson = document.querySelector('#editPersonSelector .person-btn.active');
+                const person = selectedPerson ? selectedPerson.dataset.person : familyMembers[0];
+
+                if (!category) {
+                    showToast('请选择类别', 'error');
+                    return;
+                }
+                if (!amount || amount <= 0) {
+                    showToast('请输入有效金额', 'error');
+                    return;
+                }
+
+                const { error } = await db
+                    .from('transactions')
+                    .update({
+                        type: isExpense ? 'expense' : 'income',
+                        amount: amount,
+                        category: category,
+                        date: date,
+                        description: description,
+                        person: person
+                    })
+                    .eq('id', editingTransactionId);
+
+                if (error) {
+                    showToast('修改失败', 'error');
+                    return;
+                }
+
+                const index = transactions.findIndex(t => t.id === editingTransactionId);
+                if (index !== -1) {
+                    transactions[index] = {
+                        ...transactions[index],
+                        type: isExpense ? 'expense' : 'income',
+                        amount: amount,
+                        category: category,
+                        date: date,
+                        description: description,
+                        person: person
+                    };
+                }
+
+                document.getElementById('editTransactionModal').classList.remove('active');
+                editingTransactionId = null;
+
+                filterTransactions();
+                updateDashboard();
+                showToast('记录已修改', 'success');
+            });
         }
 
         function navigateTo(page) {
@@ -1811,6 +2066,44 @@
             }
         }
 
+        let editingTransactionId = null;
+
+        function renderEditPersonSelector(selectedPerson) {
+            const container = document.getElementById('editPersonSelector');
+            container.innerHTML = familyMembers.map(m =>
+                `<button type="button" class="person-btn ${m === selectedPerson ? 'active' : ''}" data-person="${m}">${m}</button>`
+            ).join('');
+        }
+
+        async function editTransaction(id) {
+            const t = transactions.find(t => t.id === id);
+            if (!t) return;
+
+            editingTransactionId = id;
+
+            document.getElementById('editTransactionId').value = id;
+            document.getElementById('editAmount').value = t.amount;
+            document.getElementById('editDate').value = t.date;
+            document.getElementById('editDescription').value = t.description || '';
+
+            const isExpense = t.type === 'expense';
+            document.getElementById('editTypeExpense').classList.toggle('active', isExpense);
+            document.getElementById('editTypeIncome').classList.toggle('active', !isExpense);
+            document.getElementById('editExpenseCategories').style.display = isExpense ? 'grid' : 'none';
+            document.getElementById('editIncomeCategories').style.display = isExpense ? 'none' : 'grid';
+
+            const categoryContainer = isExpense
+                ? document.getElementById('editExpenseCategories')
+                : document.getElementById('editIncomeCategories');
+            categoryContainer.querySelectorAll('.category-item').forEach(btn => {
+                btn.classList.toggle('selected', btn.dataset.category === t.category);
+            });
+
+            renderEditPersonSelector(t.person);
+
+            document.getElementById('editTransactionModal').classList.add('active');
+        }
+
         // Dashboard
         function updateDashboard() {
             const { start, end } = getMonthRange();
@@ -1896,6 +2189,12 @@
             const personBadge = isReconciliation
                 ? `<span class="transaction-person" style="background:rgba(244,162,97,0.2);color:var(--color-warning);">资产统计</span>`
                 : `<span class="transaction-person">${t.person}</span>`;
+            const actionButtons = isReconciliation ? '' : `
+                <div class="transaction-actions" style="display:flex;gap:4px;margin-left:8px;">
+                    <button class="btn-icon" onclick="editTransaction('${t.id}')" title="编辑" style="background:none;border:none;cursor:pointer;font-size:16px;padding:4px;opacity:0.5;">✏️</button>
+                    <button class="btn-icon" onclick="deleteTransaction('${t.id}')" title="删除" style="background:none;border:none;cursor:pointer;font-size:16px;padding:4px;opacity:0.5;">🗑️</button>
+                </div>
+            `;
             return `
                 <div class="transaction-item" data-id="${t.id}" ${isReconciliation ? 'style="background:rgba(244,162,97,0.05);"' : ''}>
                     <div class="transaction-icon">${emoji}</div>
@@ -1909,6 +2208,7 @@
                     <div class="transaction-amount ${t.type}">
                         ${t.type === 'income' ? '+' : '-'}${formatCurrency(t.amount)}
                     </div>
+                    ${actionButtons}
                 </div>
             `;
         }
