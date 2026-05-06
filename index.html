@@ -1017,15 +1017,28 @@
                 <button class="btn" style="width: 100%;" id="calculateAssessment">计算变化</button>
 
                 <div id="assessmentResult" style="margin-top: var(--spacing-4); display: none;">
-                    <div class="summary-cards">
+                    <div class="summary-cards" style="grid-template-columns:repeat(2,1fr);">
                         <div class="summary-card">
-                            <div class="summary-card-label">总资产变化</div>
+                            <div class="summary-card-label">资产变化</div>
                             <div class="summary-card-value font-number" id="assetChange">¥0.00</div>
                         </div>
                         <div class="summary-card">
                             <div class="summary-card-label">日均变化</div>
                             <div class="summary-card-value font-number" id="dailyChange">¥0.00</div>
                         </div>
+                        <div class="summary-card income">
+                            <div class="summary-card-label">期间收入</div>
+                            <div class="summary-card-value income font-number" id="assessmentIncome">¥0.00</div>
+                        </div>
+                        <div class="summary-card expense">
+                            <div class="summary-card-label">期间支出</div>
+                            <div class="summary-card-value expense font-number" id="assessmentExpense">¥0.00</div>
+                        </div>
+                    </div>
+                    <div style="margin-top:var(--spacing-3);padding:12px;border-radius:8px;background:var(--color-surface-light);font-size:13px;line-height:2;">
+                        <div style="display:flex;justify-content:space-between;"><span class="text-muted">实际支出 = 收入 - 资产变化</span><span class="font-number" id="assessmentActualExpense" style="font-weight:600;">¥0.00</span></div>
+                        <div style="display:flex;justify-content:space-between;"><span class="text-muted">统计支出</span><span class="font-number" id="assessmentRecordedExpense" style="font-weight:600;">¥0.00</span></div>
+                        <div style="display:flex;justify-content:space-between;border-top:1px solid var(--color-border);padding-top:4px;margin-top:4px;"><span style="font-weight:600;">误差值（漏统计）</span><span class="font-number" id="assessmentDiff" style="font-weight:700;">¥0.00</span></div>
                     </div>
                 </div>
             </div>
@@ -2811,21 +2824,45 @@
 
             const fromTotal = fromSnapshot.totalAssets || (fromSnapshot.cardBalance + fromSnapshot.savingsBalance - (fromSnapshot.liabilitiesBalance || 0));
             const toTotal = toSnapshot.totalAssets || (toSnapshot.cardBalance + toSnapshot.savingsBalance - (toSnapshot.liabilitiesBalance || 0));
-            const change = toTotal - fromTotal;
+            const assetChange = toTotal - fromTotal;
 
             const fromDate = new Date(fromSnapshot.date);
             const toDate = new Date(toSnapshot.date);
             const days = Math.max(1, Math.ceil((toDate - fromDate) / (1000 * 60 * 60 * 24)));
-            const dailyChange = change / days;
+            const dailyChange = assetChange / days;
 
+            // Calculate income and expense between the two snapshots (excluding 资产统计)
+            const periodTransactions = transactions.filter(t => {
+                return t.date > fromSnapshot.date && t.date <= toSnapshot.date && t.person !== '资产统计';
+            });
+            const totalIncome = periodTransactions.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
+            const totalExpense = periodTransactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
+
+            // 实际支出 = 收入 - 资产变化 (how much was actually spent based on asset movement)
+            const actualExpense = totalIncome - assetChange;
+            // 误差值 = 统计支出 - 实际支出 (positive = under-recorded, negative = over-recorded)
+            const diff = totalExpense - actualExpense;
+
+            // Asset change & daily change
             const changeEl = document.getElementById('assetChange');
             const dailyChangeEl = document.getElementById('dailyChange');
-
-            changeEl.textContent = (change >= 0 ? '+' : '') + formatCurrency(change);
-            changeEl.className = 'summary-card-value font-number ' + (change >= 0 ? 'text-income' : 'text-expense');
-
+            changeEl.textContent = (assetChange >= 0 ? '+' : '') + formatCurrency(assetChange);
+            changeEl.className = 'summary-card-value font-number ' + (assetChange >= 0 ? 'text-income' : 'text-expense');
             dailyChangeEl.textContent = (dailyChange >= 0 ? '+' : '') + formatCurrency(dailyChange) + '/天';
             dailyChangeEl.className = 'summary-card-value font-number ' + (dailyChange >= 0 ? 'text-income' : 'text-expense');
+
+            // Income & Expense
+            document.getElementById('assessmentIncome').textContent = formatCurrency(totalIncome);
+            document.getElementById('assessmentExpense').textContent = formatCurrency(totalExpense);
+
+            // Analysis
+            document.getElementById('assessmentActualExpense').textContent = formatCurrency(Math.max(0, actualExpense));
+            document.getElementById('assessmentActualExpense').style.color = actualExpense > 0 ? 'var(--color-expense)' : 'var(--color-income)';
+            document.getElementById('assessmentRecordedExpense').textContent = formatCurrency(totalExpense);
+            
+            const diffEl = document.getElementById('assessmentDiff');
+            diffEl.textContent = (diff >= 0 ? '+' : '') + formatCurrency(diff);
+            diffEl.style.color = Math.abs(diff) < 0.01 ? 'var(--color-text-muted)' : (diff > 0 ? 'var(--color-error)' : 'var(--color-secondary)');
 
             document.getElementById('assessmentResult').style.display = 'block';
         }
