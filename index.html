@@ -973,6 +973,17 @@
                         </select>
                         <button class="btn btn-sm" id="resetFilters">重置</button>
                     </div>
+                    <div class="filter-row">
+                        <input type="search" id="filterKeyword" placeholder="搜索备注关键字..." style="width:100%;">
+                    </div>
+                </div>
+
+                <div id="transactionSummary" style="display:none;margin-bottom:var(--spacing-3);padding:10px 14px;border-radius:8px;background:var(--color-surface-light);font-size:13px;justify-content:space-between;align-items:center;">
+                    <span class="text-muted">筛选结果</span>
+                    <span>
+                        <span id="summaryNet" class="font-number" style="font-weight:600;">¥0.00</span>
+                        <span class="text-muted" style="margin-left:8px;font-size:12px;" id="summaryCount"></span>
+                    </span>
                 </div>
 
                 <div id="transactionList">
@@ -1791,6 +1802,11 @@
             document.getElementById('filterCategory').addEventListener('change', filterTransactions);
             document.getElementById('filterDateFrom').addEventListener('change', filterTransactions);
             document.getElementById('filterDateTo').addEventListener('change', filterTransactions);
+            let keywordTimer = null;
+            document.getElementById('filterKeyword').addEventListener('input', function() {
+                clearTimeout(keywordTimer);
+                keywordTimer = setTimeout(filterTransactions, 300);
+            });
             document.getElementById('resetFilters').addEventListener('click', resetFilters);
 
             // Snapshot Modal
@@ -2273,6 +2289,7 @@
             const category = document.getElementById('filterCategory').value;
             const dateFrom = document.getElementById('filterDateFrom').value;
             const dateTo = document.getElementById('filterDateTo').value;
+            const keyword = (document.getElementById('filterKeyword').value || '').trim().toLowerCase();
 
             let filtered = [...transactions];
 
@@ -2296,12 +2313,19 @@
                 filtered = filtered.filter(t => t.date <= dateTo);
             }
 
+            if (keyword) {
+                filtered = filtered.filter(t => t.description && t.description.toLowerCase().includes(keyword));
+            }
+
             filtered.sort((a, b) => new Date(b.date) - new Date(a.date));
 
-            const container = document.getElementById('transactionList');
+            const summaryEl = document.getElementById('transactionSummary');
+            const netEl = document.getElementById('summaryNet');
+            const countEl = document.getElementById('summaryCount');
 
             if (filtered.length === 0) {
-                container.innerHTML = `
+                summaryEl.style.display = 'none';
+                document.getElementById('transactionList').innerHTML = `
                     <div class="empty-state">
                         <div class="icon">📋</div>
                         <h3>暂无符合条件的交易</h3>
@@ -2311,7 +2335,15 @@
                 return;
             }
 
-            container.innerHTML = filtered.map(t => {
+            const incomeTotal = filtered.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
+            const expenseTotal = filtered.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
+            const net = incomeTotal - expenseTotal;
+            netEl.textContent = (net >= 0 ? '+' : '') + formatCurrency(net);
+            netEl.style.color = net >= 0 ? 'var(--color-income)' : 'var(--color-expense)';
+            countEl.textContent = '共 ' + filtered.length + ' 笔';
+            summaryEl.style.display = 'flex';
+
+            document.getElementById('transactionList').innerHTML = filtered.map(t => {
                 const emoji = CATEGORY_EMOJIS[t.category] || '📝';
                 const isReconciliation = t.person === '资产统计';
                 const personBadge = isReconciliation
@@ -2342,6 +2374,7 @@
             document.getElementById('filterCategory').value = 'all';
             document.getElementById('filterDateFrom').value = '';
             document.getElementById('filterDateTo').value = '';
+            document.getElementById('filterKeyword').value = '';
             filterTransactions();
         }
 
