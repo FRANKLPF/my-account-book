@@ -1883,6 +1883,7 @@
         let currentCategory = null;
         let currentPerson = '';
         let charts = {};
+        let deepseekApiKey = '';
         let medicines = [];
         let prescriptions = [];
         let medicineLocations = JSON.parse(localStorage.getItem('medicineLocations') || '["客厅药箱","卧室抽屉","厨房","卫生间","书房","随身包","冰箱","其他"]');
@@ -1933,6 +1934,15 @@
                     medicineIndications = data.settings.medicineIndications;
                     localStorage.setItem('medicineIndications', JSON.stringify(medicineIndications));
                 }
+                if (data.settings.deepseekApiKey) {
+                    deepseekApiKey = data.settings.deepseekApiKey;
+                    try {
+                        const decrypted = decodeURIComponent(escape(atob(data.settings.deepseekApiKey)));
+                        localStorage.setItem('deepseek_api_key', decrypted);
+                    } catch (e) {
+                        console.error('Failed to decrypt API key:', e);
+                    }
+                }
             }
         }
 
@@ -1943,7 +1953,8 @@
             const settings = {
                 familyMembers: familyMembers,
                 medicineLocations: medicineLocations,
-                medicineIndications: medicineIndications
+                medicineIndications: medicineIndications,
+                deepseekApiKey: deepseekApiKey || undefined
             };
 
             const { error } = await db
@@ -3111,11 +3122,13 @@
             if (savedKey) {
                 document.getElementById('deepseekApiKey').value = savedKey.slice(0, 4) + '****' + savedKey.slice(-4);
             }
-            document.getElementById('saveApiKeyBtn').addEventListener('click', () => {
+            document.getElementById('saveApiKeyBtn').addEventListener('click', async () => {
                 const input = document.getElementById('deepseekApiKey');
                 const val = input.value.trim();
                 if (!val) {
                     localStorage.removeItem('deepseek_api_key');
+                    deepseekApiKey = '';
+                    saveUserSettings();
                     showToast('API Key 已清除', 'success');
                     return;
                 }
@@ -3123,9 +3136,12 @@
                     showToast('未做修改', 'success');
                     return;
                 }
+                const encrypted = btoa(unescape(encodeURIComponent(val)));
                 localStorage.setItem('deepseek_api_key', val);
+                deepseekApiKey = encrypted;
                 input.value = val.slice(0, 4) + '****' + val.slice(-4);
-                showToast('API Key 已保存', 'success');
+                await saveUserSettings();
+                showToast('API Key 已保存并同步', 'success');
             });
         }
 
