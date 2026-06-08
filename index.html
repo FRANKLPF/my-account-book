@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>家庭记账本</title>
+    <title>家事通</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js" defer></script>
     <style>
         :root {
@@ -797,6 +797,10 @@
             }
         }
 
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
         /* Empty State */
         .empty-state {
             text-align: center;
@@ -875,7 +879,7 @@
     <!-- Loading Screen (shown immediately, hidden by JS) -->
     <div id="loadingScreen" style="position:fixed;top:0;left:0;right:0;bottom:0;background:var(--color-background);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;">
         <div style="font-size:48px;margin-bottom:16px;">🏠</div>
-        <div style="color:var(--color-text);font-size:18px;font-weight:600;margin-bottom:16px;">家庭记账本</div>
+        <div style="color:var(--color-text);font-size:18px;font-weight:600;margin-bottom:16px;">家事通</div>
         <div style="width:120px;height:4px;background:var(--color-surface-light);border-radius:2px;overflow:hidden;">
             <div style="width:40%;height:100%;background:var(--color-primary);border-radius:2px;animation:loadingBar 1s ease-in-out infinite;"></div>
         </div>
@@ -885,7 +889,7 @@
     <!-- Header -->
     <header style="display:none;">
         <div class="container">
-            <h1>家庭记账本</h1>
+            <h1>家事通</h1>
         </div>
     </header>
 
@@ -1386,6 +1390,20 @@
                     <button class="modal-close" onclick="closePrescriptionModal()">&times;</button>
                 </div>
                 <form id="prescriptionForm">
+                    <div class="form-group" style="margin-bottom:var(--spacing-3);">
+                        <button type="button" class="btn btn-secondary" id="rxPhotoBtn" style="width:100%;display:flex;align-items:center;justify-content:center;gap:8px;">
+                            📷 拍照识别处方
+                        </button>
+                        <input type="file" id="rxPhotoInput" accept="image/*" capture="environment" style="display:none;">
+                        <div id="rxPhotoPreview" style="display:none;margin-top:8px;position:relative;">
+                            <img id="rxPhotoImg" style="width:100%;max-height:200px;object-fit:contain;border-radius:8px;">
+                            <button type="button" id="rxPhotoRemove" style="position:absolute;top:4px;right:4px;background:rgba(0,0,0,0.6);color:#fff;border:none;border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;">&times;</button>
+                        </div>
+                        <div id="rxPhotoLoading" style="display:none;text-align:center;padding:12px;color:var(--color-text-secondary);">
+                            <div style="display:inline-block;width:20px;height:20px;border:2px solid var(--color-border);border-top-color:var(--color-primary);border-radius:50%;animation:spin 0.8s linear infinite;vertical-align:middle;"></div>
+                            <span style="margin-left:8px;">正在识别处方...</span>
+                        </div>
+                    </div>
                     <div class="form-group">
                         <label>处方名称</label>
                         <input type="text" id="rxName" required placeholder="如：感冒处方" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--color-border);background:var(--color-surface-light);color:var(--color-text);font-size:14px;">
@@ -1469,6 +1487,16 @@
             </div>
 
             <div class="card">
+                <h3>AI 识别设置</h3>
+                <p class="text-muted" style="margin-bottom: var(--spacing-3);">配置 DeepSeek API Key 以启用处方拍照识别功能</p>
+                <div style="display:flex;gap:8px;">
+                    <input type="password" id="deepseekApiKey" placeholder="输入 DeepSeek API Key" style="flex:1;padding:10px;border-radius:8px;border:1px solid var(--color-border);background:var(--color-surface-light);color:var(--color-text);font-size:14px;">
+                    <button class="btn" id="saveApiKeyBtn">保存</button>
+                </div>
+                <p class="text-muted" style="font-size:12px;margin-top:var(--spacing-2);">API Key 仅存储在本地浏览器中，不会上传到服务器。可在 <a href="https://platform.deepseek.com/api_keys" target="_blank" style="color:var(--color-primary);">DeepSeek 平台</a> 获取 Key。</p>
+            </div>
+
+            <div class="card">
                 <h3>账号</h3>
                 <p class="text-muted" id="userEmail" style="margin-bottom: var(--spacing-3);">未登录</p>
                 <button class="btn btn-danger" style="width: 100%;" id="logoutBtn">退出登录</button>
@@ -1476,8 +1504,8 @@
 
             <div class="card">
                 <h3>关于</h3>
-                <p class="text-muted">家庭记账本 v1.0</p>
-                <p class="text-muted" style="margin-top: var(--spacing-2);">专为夫妻设计的家庭理财工具</p>
+                <p class="text-muted">家事通 v1.0</p>
+                <p class="text-muted" style="margin-top: var(--spacing-2);">家庭生活管理工具</p>
                 <p class="text-muted">数据云端同步，多设备共享</p>
             </div>
 
@@ -2560,6 +2588,150 @@
 
         function closePrescriptionModal() {
             document.getElementById('prescriptionModal').classList.remove('active');
+            document.getElementById('rxPhotoPreview').style.display = 'none';
+            document.getElementById('rxPhotoLoading').style.display = 'none';
+            document.getElementById('rxPhotoInput').value = '';
+        }
+
+        async function handlePrescriptionPhoto(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const apiKey = localStorage.getItem('deepseek_api_key');
+            if (!apiKey) {
+                showToast('请先在设置页面配置 DeepSeek API Key', 'error');
+                e.target.value = '';
+                return;
+            }
+
+            const preview = document.getElementById('rxPhotoPreview');
+            const img = document.getElementById('rxPhotoImg');
+            const loading = document.getElementById('rxPhotoLoading');
+
+            const reader = new FileReader();
+            reader.onload = async (ev) => {
+                img.src = ev.target.result;
+                preview.style.display = 'block';
+                loading.style.display = 'block';
+
+                try {
+                    const base64 = ev.target.result.split(',')[1];
+                    const result = await recognizePrescription(base64, apiKey);
+                    if (result) {
+                        await fillPrescriptionFromAI(result);
+                        showToast('处方识别成功', 'success');
+                    }
+                } catch (err) {
+                    showToast('识别失败：' + (err.message || '未知错误'), 'error');
+                } finally {
+                    loading.style.display = 'none';
+                }
+            };
+            reader.readAsDataURL(file);
+        }
+
+        async function recognizePrescription(base64, apiKey) {
+            const prompt = `你是一个处方识别助手。请分析这张处方图片，提取以下信息并以JSON格式返回（只返回JSON，不要其他内容）：
+{
+  "name": "处方名称（根据症状或药品概括，如：感冒处方、降压处方）",
+  "doctor": "医生姓名或医院名称（如看不清则为空字符串）",
+  "symptoms": "症状描述（如看不清则为空字符串）",
+  "medicines": ["药品1名称", "药品2名称"],
+  "note": "备注（如有特殊说明）"
+}
+
+注意：
+- medicines 数组中只写药品通用名称，不要包含剂量和用法
+- 如果识别不到某个字段，使用空字符串或空数组
+- 请仔细识别所有药品名称`;
+
+            const controller = new AbortController();
+            const timeout = setTimeout(() => controller.abort(), 30000);
+
+            try {
+                const res = await fetch('https://api.deepseek.com/chat/completions', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${apiKey}`
+                    },
+                    body: JSON.stringify({
+                        model: 'deepseek-chat',
+                        messages: [{
+                            role: 'user',
+                            content: [
+                                { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${base64}` } },
+                                { type: 'text', text: prompt }
+                            ]
+                        }],
+                        temperature: 0.1
+                    }),
+                    signal: controller.signal
+                });
+
+                clearTimeout(timeout);
+
+                if (!res.ok) {
+                    const errData = await res.json().catch(() => ({}));
+                    throw new Error(errData.error?.message || `HTTP ${res.status}`);
+                }
+
+                const data = await res.json();
+                const content = data.choices?.[0]?.message?.content || '';
+                const jsonMatch = content.match(/\{[\s\S]*\}/);
+                if (!jsonMatch) throw new Error('未能解析识别结果');
+                return JSON.parse(jsonMatch[0]);
+            } finally {
+                clearTimeout(timeout);
+            }
+        }
+
+        async function fillPrescriptionFromAI(result) {
+            if (result.name) document.getElementById('rxName').value = result.name;
+            if (result.doctor) document.getElementById('rxDoctor').value = result.doctor;
+            if (result.symptoms) document.getElementById('rxSymptoms').value = result.symptoms;
+            if (result.note) document.getElementById('rxNote').value = result.note;
+
+            if (result.medicines && result.medicines.length > 0) {
+                const existingNames = medicines.map(m => m.name.toLowerCase());
+                const newMedNames = result.medicines.filter(
+                    m => !existingNames.includes(m.toLowerCase())
+                );
+
+                if (newMedNames.length > 0) {
+                    const { data: { user } } = await db.auth.getUser();
+                    if (!user) return;
+
+                    for (const medName of newMedNames) {
+                        const { data, error } = await db
+                            .from('medicines')
+                            .insert({
+                                name: medName,
+                                user_id: user.id,
+                                quantity: 0
+                            })
+                            .select()
+                            .single();
+                        if (!error && data) {
+                            medicines.unshift(data);
+                        }
+                    }
+                    document.getElementById('rxMedicineSelector').innerHTML = medicines.map(m =>
+                        `<label style="display:flex;align-items:center;gap:6px;padding:4px 0;cursor:pointer;">
+                            <input type="checkbox" class="rx-med-cb" value="${m.id}">
+                            <span>${m.name}</span>
+                        </label>`
+                    ).join('');
+                }
+
+                const allIds = medicines.filter(m =>
+                    result.medicines.some(rm => rm.toLowerCase() === m.name.toLowerCase())
+                ).map(m => String(m.id));
+
+                document.querySelectorAll('.rx-med-cb').forEach(cb => {
+                    cb.checked = allIds.includes(cb.value);
+                });
+            }
         }
 
         async function handlePrescriptionSubmit(e) {
@@ -2925,6 +3097,36 @@
             document.getElementById('medicineFilterPrescription').addEventListener('change', updateMedicineList);
 
             document.getElementById('prescriptionForm').addEventListener('submit', handlePrescriptionSubmit);
+
+            document.getElementById('rxPhotoBtn').addEventListener('click', () => {
+                document.getElementById('rxPhotoInput').click();
+            });
+            document.getElementById('rxPhotoInput').addEventListener('change', handlePrescriptionPhoto);
+            document.getElementById('rxPhotoRemove').addEventListener('click', () => {
+                document.getElementById('rxPhotoPreview').style.display = 'none';
+                document.getElementById('rxPhotoInput').value = '';
+            });
+
+            const savedKey = localStorage.getItem('deepseek_api_key');
+            if (savedKey) {
+                document.getElementById('deepseekApiKey').value = savedKey.slice(0, 4) + '****' + savedKey.slice(-4);
+            }
+            document.getElementById('saveApiKeyBtn').addEventListener('click', () => {
+                const input = document.getElementById('deepseekApiKey');
+                const val = input.value.trim();
+                if (!val) {
+                    localStorage.removeItem('deepseek_api_key');
+                    showToast('API Key 已清除', 'success');
+                    return;
+                }
+                if (val.includes('****')) {
+                    showToast('未做修改', 'success');
+                    return;
+                }
+                localStorage.setItem('deepseek_api_key', val);
+                input.value = val.slice(0, 4) + '****' + val.slice(-4);
+                showToast('API Key 已保存', 'success');
+            });
         }
 
         function navigateTo(page) {
@@ -3103,7 +3305,7 @@
             }
 
             const balance = totalIncome - totalExpense;
-            document.title = `家庭记账本 | ${formatCurrency(balance)}`;
+            document.title = `家事通 | ${formatCurrency(balance)}`;
 
             updateRecentTransactions();
             updateDashboardMedicineAlert();
@@ -4379,7 +4581,7 @@
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `家庭记账本_${new Date().toISOString().split('T')[0]}.json`;
+            a.download = `家事通_${new Date().toISOString().split('T')[0]}.json`;
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
@@ -4488,7 +4690,7 @@
                     <div style="display:flex;align-items:center;justify-content:center;min-height:100vh;padding:24px;">
                         <div style="width:100%;max-width:400px;">
                             <div style="text-align:center;margin-bottom:32px;">
-                                <h1 style="font-size:32px;margin-bottom:8px;">🏠 家庭记账本</h1>
+                                <h1 style="font-size:32px;margin-bottom:8px;">🏠 家事通</h1>
                                 <p style="color:var(--color-text-muted);">登录以同步您的数据</p>
                             </div>
                             <div class="card">

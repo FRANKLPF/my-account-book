@@ -1,4 +1,4 @@
-# 家庭记账本 - AGENTS.md
+# 家事通 - AGENTS.md
 
 ## Architecture
 
