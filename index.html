@@ -348,6 +348,126 @@
             to { opacity: 1; transform: translateY(0); }
         }
 
+        .medicine-item {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-3);
+            padding: var(--spacing-3);
+            border-radius: var(--radius-md);
+            margin-bottom: var(--spacing-2);
+            background: var(--color-surface-light);
+            border: 1px solid var(--color-border);
+            transition: all var(--transition-fast);
+        }
+
+        .medicine-item:hover {
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .medicine-item.expired {
+            border-color: var(--color-error);
+            background: rgba(231, 111, 81, 0.1);
+        }
+
+        .medicine-item.expiring {
+            border-color: var(--color-warning);
+            background: rgba(244, 162, 97, 0.1);
+        }
+
+        .medicine-icon {
+            font-size: 28px;
+            flex-shrink: 0;
+        }
+
+        .medicine-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .medicine-name {
+            font-weight: 600;
+            font-size: 15px;
+        }
+
+        .medicine-detail {
+            font-size: 12px;
+            color: var(--color-text-muted);
+            margin-top: 2px;
+        }
+
+        .medicine-tags {
+            display: flex;
+            gap: 4px;
+            flex-wrap: wrap;
+            margin-top: 4px;
+        }
+
+        .medicine-tag {
+            font-size: 11px;
+            padding: 2px 8px;
+            border-radius: 10px;
+            background: rgba(255, 107, 53, 0.15);
+            color: var(--color-primary);
+        }
+
+        .medicine-tag.expired-tag {
+            background: rgba(231, 111, 81, 0.2);
+            color: var(--color-error);
+        }
+
+        .medicine-tag.expiring-tag {
+            background: rgba(244, 162, 97, 0.2);
+            color: var(--color-warning);
+        }
+
+        .medicine-actions {
+            display: flex;
+            gap: 4px;
+            flex-shrink: 0;
+        }
+
+        .medicine-actions button {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 18px;
+            padding: 4px;
+            opacity: 0.5;
+            transition: opacity var(--transition-fast);
+        }
+
+        .medicine-actions button:hover {
+            opacity: 1;
+        }
+
+        .dashboard-medicine-alert {
+            background: var(--color-surface);
+            border-radius: var(--radius-md);
+            padding: var(--spacing-4);
+            margin-bottom: var(--spacing-4);
+            box-shadow: var(--shadow-md);
+            border: 1px solid var(--color-warning);
+        }
+
+        .dashboard-medicine-alert h4 {
+            color: var(--color-warning);
+            margin-bottom: var(--spacing-2);
+        }
+
+        .dashboard-medicine-alert-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: var(--spacing-2) 0;
+            border-bottom: 1px solid var(--color-border);
+            font-size: 14px;
+        }
+
+        .dashboard-medicine-alert-item:last-child {
+            border-bottom: none;
+        }
+
         /* Summary Cards */
         .summary-cards {
             display: grid;
@@ -786,6 +906,8 @@
             <div id="dashboardPersonCards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:var(--spacing-2);margin-top:var(--spacing-2);">
             </div>
 
+            <div id="dashboardMedicineAlert" style="display:none;"></div>
+
             <div class="card">
                 <h3>最近交易</h3>
                 <div id="recentTransactions">
@@ -1129,6 +1251,181 @@
         </div>
 
         <!-- Data Management Page -->
+        <div class="page" id="page-medicine">
+            <div style="display:flex;gap:var(--spacing-2);margin-bottom:var(--spacing-4);">
+                <button class="btn" id="tabMedicineList" onclick="switchMedicineTab('list')" style="flex:1;">药品清单</button>
+                <button class="btn btn-secondary" id="tabPrescriptions" onclick="switchMedicineTab('prescription')" style="flex:1;">处方管理</button>
+            </div>
+
+            <div id="medicineTabList">
+                <div class="card">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--spacing-4);">
+                        <h3>💊 药品清单</h3>
+                        <button class="btn" onclick="openMedicineModal()">+ 添加药品</button>
+                    </div>
+                    <div style="display:flex;gap:var(--spacing-2);margin-bottom:var(--spacing-4);flex-wrap:wrap;">
+                        <select id="medicineFilterStatus" style="padding:8px 12px;border-radius:8px;border:1px solid var(--color-border);background:var(--color-surface-light);color:var(--color-text);font-size:14px;">
+                            <option value="all">全部状态</option>
+                            <option value="valid">有效</option>
+                            <option value="expiring">即将过期</option>
+                            <option value="expired">已过期</option>
+                        </select>
+                        <select id="medicineFilterLocation" style="padding:8px 12px;border-radius:8px;border:1px solid var(--color-border);background:var(--color-surface-light);color:var(--color-text);font-size:14px;">
+                            <option value="all">全部位置</option>
+                        </select>
+                        <select id="medicineFilterAudience" style="padding:8px 12px;border-radius:8px;border:1px solid var(--color-border);background:var(--color-surface-light);color:var(--color-text);font-size:14px;">
+                            <option value="all">全部人群</option>
+                            <option value="成人">成人</option>
+                            <option value="小孩">小孩</option>
+                            <option value="通用">通用</option>
+                        </select>
+                        <select id="medicineFilterIndication" style="padding:8px 12px;border-radius:8px;border:1px solid var(--color-border);background:var(--color-surface-light);color:var(--color-text);font-size:14px;">
+                            <option value="all">全部适应症</option>
+                        </select>
+                        <select id="medicineFilterPrescription" style="padding:8px 12px;border-radius:8px;border:1px solid var(--color-border);background:var(--color-surface-light);color:var(--color-text);font-size:14px;">
+                            <option value="all">全部处方</option>
+                        </select>
+                    </div>
+                    <div id="medicineList"></div>
+                </div>
+            </div>
+
+            <div id="medicineTabPrescription" style="display:none;">
+                <div class="card">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--spacing-4);">
+                        <h3>📋 处方管理</h3>
+                        <button class="btn" onclick="openPrescriptionModal()">+ 新建处方</button>
+                    </div>
+                    <div id="prescriptionList"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Medicine Modal -->
+        <div class="modal" id="medicineModal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3 class="modal-title" id="medicineModalTitle">添加药品</h3>
+                    <button class="modal-close" onclick="closeMedicineModal()">&times;</button>
+                </div>
+                <form id="medicineForm">
+                    <div class="form-group">
+                        <label>药品名称</label>
+                        <input type="text" id="medName" required placeholder="输入药品名称" list="medNameSuggestions" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--color-border);background:var(--color-surface-light);color:var(--color-text);font-size:14px;">
+                        <datalist id="medNameSuggestions"></datalist>
+                    </div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--spacing-3);">
+                        <div class="form-group">
+                            <label>品牌</label>
+                            <input type="text" id="medBrand" placeholder="如：泰诺、白云山" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--color-border);background:var(--color-surface-light);color:var(--color-text);font-size:14px;">
+                        </div>
+                        <div class="form-group">
+                            <label>规格</label>
+                            <input type="text" id="medSpec" placeholder="如：500mg×24片" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--color-border);background:var(--color-surface-light);color:var(--color-text);font-size:14px;">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>适应症（可多选）</label>
+                        <div id="medIndicationsContainer" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:4px;"></div>
+                    </div>
+                    <div class="form-group">
+                        <label>用法用量</label>
+                        <input type="text" id="medDosage" placeholder="如：每日3次，每次1粒" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--color-border);background:var(--color-surface-light);color:var(--color-text);font-size:14px;">
+                    </div>
+                    <div class="form-group">
+                        <label>注意事项</label>
+                        <input type="text" id="medPrecautions" placeholder="如：饭后服用" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--color-border);background:var(--color-surface-light);color:var(--color-text);font-size:14px;">
+                    </div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:var(--spacing-3);">
+                        <div class="form-group">
+                            <label>数量</label>
+                            <input type="number" id="medQuantity" min="0" required value="1" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--color-border);background:var(--color-surface-light);color:var(--color-text);font-size:14px;">
+                        </div>
+                        <div class="form-group">
+                            <label>有效期</label>
+                            <input type="date" id="medExpiry" required style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--color-border);background:var(--color-surface-light);color:var(--color-text);font-size:14px;">
+                        </div>
+                        <div class="form-group">
+                            <label>购买价格</label>
+                            <input type="number" id="medPrice" step="0.01" min="0" placeholder="0.00" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--color-border);background:var(--color-surface-light);color:var(--color-text);font-size:14px;">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>适用人群</label>
+                        <div style="display:flex;gap:var(--spacing-3);margin-top:4px;">
+                            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;padding:8px 16px;border-radius:8px;border:1px solid var(--color-border);background:var(--color-surface-light);font-size:14px;">
+                                <input type="checkbox" value="成人" class="med-audience-cb"> 成人
+                            </label>
+                            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;padding:8px 16px;border-radius:8px;border:1px solid var(--color-border);background:var(--color-surface-light);font-size:14px;">
+                                <input type="checkbox" value="小孩" class="med-audience-cb"> 小孩
+                            </label>
+                            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;padding:8px 16px;border-radius:8px;border:1px solid var(--color-border);background:var(--color-surface-light);font-size:14px;">
+                                <input type="checkbox" value="通用" class="med-audience-cb"> 通用
+                            </label>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>存放位置</label>
+                        <select id="medLocation" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--color-border);background:var(--color-surface-light);color:var(--color-text);font-size:14px;">
+                        </select>
+                    </div>
+                    <input type="hidden" id="medEditId">
+                    <div style="display:flex;gap:var(--spacing-2);margin-top:var(--spacing-4);">
+                        <button type="submit" class="btn" style="flex:1;">保存</button>
+                        <button type="button" class="btn btn-secondary" onclick="closeMedicineModal()">取消</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Prescription Modal -->
+        <div class="modal" id="prescriptionModal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3 class="modal-title" id="prescriptionModalTitle">新建处方</h3>
+                    <button class="modal-close" onclick="closePrescriptionModal()">&times;</button>
+                </div>
+                <form id="prescriptionForm">
+                    <div class="form-group">
+                        <label>处方名称</label>
+                        <input type="text" id="rxName" required placeholder="如：感冒处方" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--color-border);background:var(--color-surface-light);color:var(--color-text);font-size:14px;">
+                    </div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--spacing-3);">
+                        <div class="form-group">
+                            <label>开方日期</label>
+                            <input type="date" id="rxDate" required style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--color-border);background:var(--color-surface-light);color:var(--color-text);font-size:14px;">
+                        </div>
+                        <div class="form-group">
+                            <label>开给谁</label>
+                            <select id="rxPerson" required style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--color-border);background:var(--color-surface-light);color:var(--color-text);font-size:14px;">
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>医生/医院</label>
+                        <input type="text" id="rxDoctor" placeholder="如：张医生 / 某某医院" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--color-border);background:var(--color-surface-light);color:var(--color-text);font-size:14px;">
+                    </div>
+                    <div class="form-group">
+                        <label>症状</label>
+                        <input type="text" id="rxSymptoms" placeholder="如：头痛发热、咳嗽三天" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--color-border);background:var(--color-surface-light);color:var(--color-text);font-size:14px;">
+                    </div>
+                    <div class="form-group">
+                        <label>选择药品（可多选）</label>
+                        <div id="rxMedicineSelector" style="max-height:200px;overflow-y:auto;display:flex;flex-direction:column;gap:6px;margin-top:4px;"></div>
+                    </div>
+                    <div class="form-group">
+                        <label>备注</label>
+                        <input type="text" id="rxNote" placeholder="处方备注" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--color-border);background:var(--color-surface-light);color:var(--color-text);font-size:14px;">
+                    </div>
+                    <input type="hidden" id="rxEditId">
+                    <div style="display:flex;gap:var(--spacing-2);margin-top:var(--spacing-4);">
+                        <button type="submit" class="btn" style="flex:1;">保存</button>
+                        <button type="button" class="btn btn-secondary" onclick="closePrescriptionModal()">取消</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
         <div class="page" id="page-settings">
             <div class="card">
                 <h3>数据管理</h3>
@@ -1148,6 +1445,26 @@
                 <div style="display:flex;gap:8px;">
                     <input type="text" id="newMemberName" placeholder="输入成员名称" style="flex:1;padding:10px;border-radius:8px;border:1px solid var(--color-border);background:var(--color-surface-light);color:var(--color-text);font-size:14px;">
                     <button class="btn" id="addMemberBtn">添加</button>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>药品存放位置</h3>
+                <p class="text-muted" style="margin-bottom: var(--spacing-3);">管理药品的存放位置选项</p>
+                <div id="locationList" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:var(--spacing-3);"></div>
+                <div style="display:flex;gap:8px;">
+                    <input type="text" id="newLocationName" placeholder="输入位置名称" style="flex:1;padding:10px;border-radius:8px;border:1px solid var(--color-border);background:var(--color-surface-light);color:var(--color-text);font-size:14px;">
+                    <button class="btn" id="addLocationBtn">添加</button>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>药品适应症</h3>
+                <p class="text-muted" style="margin-bottom: var(--spacing-3);">管理药品的适应症选项</p>
+                <div id="indicationList" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:var(--spacing-3);"></div>
+                <div style="display:flex;gap:8px;">
+                    <input type="text" id="newIndicationName" placeholder="输入适应症名称" style="flex:1;padding:10px;border-radius:8px;border:1px solid var(--color-border);background:var(--color-surface-light);color:var(--color-text);font-size:14px;">
+                    <button class="btn" id="addIndicationBtn">添加</button>
                 </div>
             </div>
 
@@ -1193,6 +1510,10 @@
         <button class="nav-item" data-page="statistics">
             <span class="icon">📊</span>
             <span>统计</span>
+        </button>
+        <button class="nav-item" data-page="medicine">
+            <span class="icon">💊</span>
+            <span>药物</span>
         </button>
         <button class="nav-item" data-page="settings">
             <span class="icon">⚙️</span>
@@ -1534,6 +1855,10 @@
         let currentCategory = null;
         let currentPerson = '';
         let charts = {};
+        let medicines = [];
+        let prescriptions = [];
+        let medicineLocations = JSON.parse(localStorage.getItem('medicineLocations') || '["客厅药箱","卧室抽屉","厨房","卫生间","书房","随身包","冰箱","其他"]');
+        let medicineIndications = JSON.parse(localStorage.getItem('medicineIndications') || '["感冒","发烧","咳嗽","头痛","腹痛","过敏","消炎","止泻","便秘","失眠","外伤","维生素补充","降血压","降血糖","止痛","咽喉痛","鼻炎","皮肤瘙痒","消化不良","口腔溃疡"]');
         let familyMembers = JSON.parse(localStorage.getItem('familyMembers') || '["老公","老婆"]');
 
         // Ensure currentPerson is valid
@@ -1545,6 +1870,16 @@
         function saveMembers() {
             localStorage.setItem('familyMembers', JSON.stringify(familyMembers));
             saveUserSettings(); // async, fire and forget
+        }
+
+        function saveLocations() {
+            localStorage.setItem('medicineLocations', JSON.stringify(medicineLocations));
+            saveUserSettings();
+        }
+
+        function saveIndications() {
+            localStorage.setItem('medicineIndications', JSON.stringify(medicineIndications));
+            saveUserSettings();
         }
 
         async function loadUserSettings() {
@@ -1560,8 +1895,15 @@
             if (data && data.settings) {
                 if (data.settings.familyMembers && Array.isArray(data.settings.familyMembers)) {
                     familyMembers = data.settings.familyMembers;
-                    // Also update localStorage cache
                     localStorage.setItem('familyMembers', JSON.stringify(familyMembers));
+                }
+                if (data.settings.medicineLocations && Array.isArray(data.settings.medicineLocations)) {
+                    medicineLocations = data.settings.medicineLocations;
+                    localStorage.setItem('medicineLocations', JSON.stringify(medicineLocations));
+                }
+                if (data.settings.medicineIndications && Array.isArray(data.settings.medicineIndications)) {
+                    medicineIndications = data.settings.medicineIndications;
+                    localStorage.setItem('medicineIndications', JSON.stringify(medicineIndications));
                 }
             }
         }
@@ -1571,7 +1913,9 @@
             if (!user) return;
 
             const settings = {
-                familyMembers: familyMembers
+                familyMembers: familyMembers,
+                medicineLocations: medicineLocations,
+                medicineIndications: medicineIndications
             };
 
             const { error } = await db
@@ -1735,6 +2079,22 @@
                 balanceChange: s.balance_change !== null && s.balance_change !== undefined ? Number(s.balance_change) : null,
                 createdAt: s.created_at
             }));
+
+            const { data: medData } = await db
+                .from('medicines')
+                .select('*')
+                .order('created_at', { ascending: false });
+            medicines = (medData || []).filter(m => !m.discarded);
+
+            const { data: rxData } = await db
+                .from('prescriptions')
+                .select('*')
+                .order('prescription_date', { ascending: false });
+            prescriptions = (rxData || []).map(r => ({
+                ...r,
+                medicineIds: r.medicine_ids || [],
+                createdAt: r.created_at
+            }));
         }
 
         function formatCurrency(amount) {
@@ -1744,6 +2104,567 @@
         function formatDate(dateStr) {
             const date = new Date(dateStr);
             return date.toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' });
+        }
+
+        function getMedicineExpiryStatus(expiryDate) {
+            const now = new Date();
+            now.setHours(0, 0, 0, 0);
+            const expiry = new Date(expiryDate);
+            expiry.setHours(0, 0, 0, 0);
+            const diffDays = Math.ceil((expiry - now) / (1000 * 60 * 60 * 24));
+            if (diffDays < 0) return 'expired';
+            if (diffDays <= 30) return 'expiring';
+            return 'valid';
+        }
+
+        function getMedicineExpiryLabel(status, expiryDate) {
+            if (status === 'expired') return '已过期';
+            const now = new Date();
+            now.setHours(0, 0, 0, 0);
+            const expiry = new Date(expiryDate);
+            expiry.setHours(0, 0, 0, 0);
+            const diffDays = Math.ceil((expiry - now) / (1000 * 60 * 60 * 24));
+            if (status === 'expiring') return `${diffDays}天后过期`;
+            return formatDate(expiryDate);
+        }
+
+        function renderIndicationCheckboxes(selectedIndications) {
+            const container = document.getElementById('medIndicationsContainer');
+            container.innerHTML = medicineIndications.map(ind =>
+                `<label style="display:inline-flex;align-items:center;gap:4px;cursor:pointer;padding:6px 12px;border-radius:8px;border:1px solid var(--color-border);background:var(--color-surface-light);font-size:13px;">
+                    <input type="checkbox" value="${ind}" class="med-indication-cb" ${(selectedIndications || []).includes(ind) ? 'checked' : ''}> ${ind}
+                </label>`
+            ).join('');
+        }
+
+        function openMedicineModal(editId) {
+            const modal = document.getElementById('medicineModal');
+            const title = document.getElementById('medicineModalTitle');
+            const form = document.getElementById('medicineForm');
+
+            form.reset();
+            document.getElementById('medEditId').value = '';
+            document.getElementById('medQuantity').value = '1';
+            document.querySelectorAll('.med-audience-cb').forEach(cb => cb.checked = false);
+            renderMedLocationSelect(medicineLocations[0] || '');
+            renderIndicationCheckboxes([]);
+
+            if (editId) {
+                const med = medicines.find(m => m.id === editId);
+                if (med) {
+                    title.textContent = '编辑药品';
+                    document.getElementById('medEditId').value = med.id;
+                    document.getElementById('medName').value = med.name || '';
+                    document.getElementById('medBrand').value = med.brand || '';
+                    document.getElementById('medSpec').value = med.specification || '';
+                    document.getElementById('medDosage').value = med.dosage || '';
+                    document.getElementById('medPrecautions').value = med.precautions || '';
+                    document.getElementById('medQuantity').value = med.quantity || 1;
+                    document.getElementById('medExpiry').value = med.expiry_date || '';
+                    document.getElementById('medPrice').value = med.purchase_price || '';
+                    renderMedLocationSelect(med.storage_location || medicineLocations[0] || '');
+                    renderIndicationCheckboxes(med.indications || []);
+                    const audience = med.audience || [];
+                    document.querySelectorAll('.med-audience-cb').forEach(cb => {
+                        cb.checked = audience.includes(cb.value);
+                    });
+                }
+            } else {
+                title.textContent = '添加药品';
+                document.getElementById('medExpiry').value = '';
+                populateMedNameSuggestions();
+            }
+
+            modal.classList.add('active');
+        }
+
+        function closeMedicineModal() {
+            document.getElementById('medicineModal').classList.remove('active');
+        }
+
+        function populateMedNameSuggestions() {
+            const datalist = document.getElementById('medNameSuggestions');
+            const { data: { user } } = { data: { user: null } };
+            db.auth.getUser().then(({ data: { user } }) => {
+                if (!user) return;
+                db.from('medicines')
+                    .select('name,brand,specification,indications,dosage,precautions')
+                    .eq('user_id', user.id)
+                    .order('created_at', { ascending: false })
+                    .then(({ data }) => {
+                        const seen = new Set();
+                        const unique = (data || []).filter(m => {
+                            if (seen.has(m.name)) return false;
+                            seen.add(m.name);
+                            return true;
+                        });
+                        datalist.innerHTML = unique.map(m =>
+                            `<option value="${m.name}">`
+                        ).join('');
+
+                        const nameInput = document.getElementById('medName');
+                        const handler = () => {
+                            const val = nameInput.value.trim();
+                            if (!val) return;
+                            const match = unique.find(m => m.name === val);
+                            if (match) {
+                                document.getElementById('medBrand').value = match.brand || '';
+                                document.getElementById('medSpec').value = match.specification || '';
+                                renderIndicationCheckboxes(match.indications || []);
+                                document.getElementById('medDosage').value = match.dosage || '';
+                                document.getElementById('medPrecautions').value = match.precautions || '';
+                            }
+                        };
+                        nameInput.removeEventListener('change', nameInput._medAutoFill);
+                        nameInput._medAutoFill = handler;
+                        nameInput.addEventListener('change', handler);
+                    });
+            });
+        }
+
+        async function handleMedicineSubmit(e) {
+            e.preventDefault();
+            const { data: { user } } = await db.auth.getUser();
+            if (!user) return;
+
+            const name = document.getElementById('medName').value.trim();
+            const brand = document.getElementById('medBrand').value.trim();
+            const specification = document.getElementById('medSpec').value.trim();
+            const indications = [];
+            document.querySelectorAll('.med-indication-cb:checked').forEach(cb => indications.push(cb.value));
+            const dosage = document.getElementById('medDosage').value.trim();
+            const precautions = document.getElementById('medPrecautions').value.trim();
+            const quantity = parseInt(document.getElementById('medQuantity').value) || 0;
+            const expiryDate = document.getElementById('medExpiry').value;
+            const purchasePrice = document.getElementById('medPrice').value ? parseFloat(document.getElementById('medPrice').value) : null;
+            const storageLocation = document.getElementById('medLocation').value;
+            const audience = [];
+            document.querySelectorAll('.med-audience-cb:checked').forEach(cb => audience.push(cb.value));
+            if (audience.length === 0) audience.push('通用');
+            const editId = document.getElementById('medEditId').value;
+
+            const record = {
+                name,
+                brand,
+                specification,
+                indications,
+                dosage,
+                precautions,
+                quantity,
+                expiry_date: expiryDate,
+                purchase_price: purchasePrice,
+                storage_location: storageLocation,
+                audience,
+                user_id: user.id
+            };
+
+            if (editId) {
+                const { data, error } = await db
+                    .from('medicines')
+                    .update({
+                        name, brand, specification, indications, dosage, precautions, quantity,
+                        expiry_date: expiryDate, purchase_price: purchasePrice,
+                        storage_location: storageLocation,
+                        audience, updated_at: new Date().toISOString()
+                    })
+                    .eq('id', editId)
+                    .select()
+                    .single();
+                if (error) {
+                    showToast('更新失败：' + error.message, 'error');
+                    return;
+                }
+                const idx = medicines.findIndex(m => m.id === editId);
+                if (idx >= 0) medicines[idx] = data;
+                showToast('药品已更新', 'success');
+            } else {
+                const { data, error } = await db
+                    .from('medicines')
+                    .insert(record)
+                    .select()
+                    .single();
+                if (error) {
+                    showToast('添加失败：' + error.message, 'error');
+                    return;
+                }
+                medicines.unshift(data);
+                showToast('药品已添加', 'success');
+            }
+
+            closeMedicineModal();
+            updateMedicineList();
+        }
+
+        async function editMedicine(id) {
+            openMedicineModal(id);
+        }
+
+        async function discardMedicine(id) {
+            if (!await showConfirm('确定要丢弃此药品吗？丢弃后可从历史药品中重新添加。')) return;
+
+            const { error } = await db
+                .from('medicines')
+                .update({ discarded: true, discarded_at: new Date().toISOString() })
+                .eq('id', id);
+            if (error) {
+                showToast('操作失败：' + error.message, 'error');
+                return;
+            }
+            medicines = medicines.filter(m => m.id !== id);
+            updateMedicineList();
+            showToast('药品已丢弃', 'success');
+        }
+
+        function updateMedicineList() {
+            const container = document.getElementById('medicineList');
+            const statusFilter = document.getElementById('medicineFilterStatus').value;
+            const locationFilter = document.getElementById('medicineFilterLocation').value;
+            const audienceFilter = document.getElementById('medicineFilterAudience').value;
+            const indicationFilter = document.getElementById('medicineFilterIndication').value;
+            const prescriptionFilter = document.getElementById('medicineFilterPrescription').value;
+
+            let filtered = [...medicines];
+
+            if (statusFilter !== 'all') {
+                filtered = filtered.filter(m => getMedicineExpiryStatus(m.expiry_date) === statusFilter);
+            }
+            if (locationFilter !== 'all') {
+                filtered = filtered.filter(m => m.storage_location === locationFilter);
+            }
+            if (audienceFilter !== 'all') {
+                filtered = filtered.filter(m => (m.audience || []).includes(audienceFilter));
+            }
+            if (indicationFilter !== 'all') {
+                filtered = filtered.filter(m => (m.indications || []).includes(indicationFilter));
+            }
+            if (prescriptionFilter !== 'all') {
+                const rx = prescriptions.find(r => r.id === prescriptionFilter);
+                if (rx) {
+                    const rxMedIds = rx.medicineIds || rx.medicine_ids || [];
+                    filtered = filtered.filter(m => rxMedIds.includes(m.id));
+                }
+            }
+
+            updateMedicineLocationFilter();
+            updateMedicineIndicationFilter();
+            updateMedicinePrescriptionFilter();
+
+            if (filtered.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="icon">💊</div>
+                        <h3>暂无药品记录</h3>
+                        <p>点击"添加药品"按钮开始管理家庭药品</p>
+                    </div>`;
+                return;
+            }
+
+            container.innerHTML = filtered.map(m => {
+                const status = getMedicineExpiryStatus(m.expiry_date);
+                const statusClass = status === 'expired' ? 'expired' : (status === 'expiring' ? 'expiring' : '');
+                const expiryLabel = getMedicineExpiryLabel(status, m.expiry_date);
+                const audience = (m.audience || []).join('、');
+                const nameLine = m.brand ? `${m.name}（${m.brand}）` : m.name;
+                const buyDate = m.created_at ? new Date(m.created_at).toLocaleDateString('zh-CN') : '';
+                const indications = (m.indications || []).join('、');
+                const linkedRx = prescriptions.filter(r => (r.medicineIds || r.medicine_ids || []).includes(m.id));
+                return `
+                    <div class="medicine-item ${statusClass}">
+                        <div class="medicine-icon">💊</div>
+                        <div class="medicine-info">
+                            <div class="medicine-name">${nameLine}</div>
+                            ${indications ? `<div class="medicine-detail">适应症：${indications}</div>` : ''}
+                            ${m.dosage ? `<div class="medicine-detail">用法用量：${m.dosage}</div>` : ''}
+                            ${m.precautions ? `<div class="medicine-detail">注意事项：${m.precautions}</div>` : ''}
+                            ${m.specification ? `<div class="medicine-detail">规格：${m.specification}</div>` : ''}
+                            <div class="medicine-detail">数量：${m.quantity} | 位置：${m.storage_location || '未设置'} | 适用：${audience || '通用'}</div>
+                            <div class="medicine-detail">${buyDate ? '购买日期：' + buyDate : ''}${m.purchase_price ? ' | 价格：¥' + parseFloat(m.purchase_price).toFixed(2) : ''}</div>
+                            ${linkedRx.length > 0 ? `<div class="medicine-detail">处方：${linkedRx.map(r => r.name).join('、')}</div>` : ''}
+                            <div class="medicine-tags">
+                                <span class="medicine-tag ${status === 'expired' ? 'expired-tag' : (status === 'expiring' ? 'expiring-tag' : '')}">${expiryLabel}</span>
+                            </div>
+                        </div>
+                        <div class="medicine-actions">
+                            <button onclick="editMedicine('${m.id}')" title="编辑">✏️</button>
+                            <button onclick="discardMedicine('${m.id}')" title="丢弃">🗑️</button>
+                        </div>
+                    </div>`;
+            }).join('');
+        }
+
+        function renderMedLocationSelect(selectedValue) {
+            const select = document.getElementById('medLocation');
+            select.innerHTML = medicineLocations.map(l =>
+                `<option value="${l}" ${l === selectedValue ? 'selected' : ''}>${l}</option>`
+            ).join('');
+        }
+
+        function updateMedicineLocationFilter() {
+            const select = document.getElementById('medicineFilterLocation');
+            const current = select.value;
+            select.innerHTML = '<option value="all">全部位置</option>' +
+                medicineLocations.map(l => `<option value="${l}" ${l === current ? 'selected' : ''}>${l}</option>`).join('');
+        }
+
+        function renderLocationList() {
+            const container = document.getElementById('locationList');
+            if (!container) return;
+            container.innerHTML = medicineLocations.map(loc => `
+                <span style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:8px;background:var(--color-surface-light);font-size:14px;">
+                    ${loc}
+                    <button onclick="removeLocation('${loc}')" style="background:none;border:none;cursor:pointer;font-size:14px;color:var(--color-error);padding:0;line-height:1;">✕</button>
+                </span>
+            `).join('');
+        }
+
+        function addLocation(name) {
+            name = name.trim();
+            if (!name) {
+                showToast('请输入位置名称', 'error');
+                return;
+            }
+            if (medicineLocations.includes(name)) {
+                showToast('该位置已存在', 'error');
+                return;
+            }
+            medicineLocations.push(name);
+            saveLocations();
+            renderLocationList();
+            showToast(`已添加位置：${name}`, 'success');
+        }
+
+        async function removeLocation(name) {
+            if (medicineLocations.length <= 1) {
+                showToast('至少保留一个存放位置', 'error');
+                return;
+            }
+            if (!await showConfirm(`确定删除存放位置「${name}」吗？`)) return;
+            medicineLocations = medicineLocations.filter(l => l !== name);
+            saveLocations();
+            renderLocationList();
+            showToast(`已删除位置：${name}`, 'success');
+        }
+
+        function updateMedicineIndicationFilter() {
+            const select = document.getElementById('medicineFilterIndication');
+            const current = select.value;
+            select.innerHTML = '<option value="all">全部适应症</option>' +
+                medicineIndications.map(i => `<option value="${i}" ${i === current ? 'selected' : ''}>${i}</option>`).join('');
+        }
+
+        function updateMedicinePrescriptionFilter() {
+            const select = document.getElementById('medicineFilterPrescription');
+            const current = select.value;
+            select.innerHTML = '<option value="all">全部处方</option>' +
+                prescriptions.map(r => {
+                    let label = r.name;
+                    const extras = [];
+                    if (r.for_person) extras.push(r.for_person);
+                    if (r.symptoms) extras.push(r.symptoms);
+                    if (extras.length) label += '（' + extras.join(' - ') + '）';
+                    return `<option value="${r.id}" ${r.id === current ? 'selected' : ''}>${label}</option>`;
+                }).join('');
+        }
+
+        function renderIndicationList() {
+            const container = document.getElementById('indicationList');
+            if (!container) return;
+            container.innerHTML = medicineIndications.map(ind => `
+                <span style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:8px;background:var(--color-surface-light);font-size:14px;">
+                    ${ind}
+                    <button onclick="removeIndication('${ind}')" style="background:none;border:none;cursor:pointer;font-size:14px;color:var(--color-error);padding:0;line-height:1;">✕</button>
+                </span>
+            `).join('');
+        }
+
+        function addIndication(name) {
+            name = name.trim();
+            if (!name) { showToast('请输入适应症名称', 'error'); return; }
+            if (medicineIndications.includes(name)) { showToast('该适应症已存在', 'error'); return; }
+            medicineIndications.push(name);
+            saveIndications();
+            renderIndicationList();
+            showToast(`已添加适应症：${name}`, 'success');
+        }
+
+        async function removeIndication(name) {
+            if (medicineIndications.length <= 1) { showToast('至少保留一个适应症', 'error'); return; }
+            if (!await showConfirm(`确定删除适应症「${name}」吗？`)) return;
+            medicineIndications = medicineIndications.filter(i => i !== name);
+            saveIndications();
+            renderIndicationList();
+            showToast(`已删除适应症：${name}`, 'success');
+        }
+
+        function switchMedicineTab(tab) {
+            const listBtn = document.getElementById('tabMedicineList');
+            const rxBtn = document.getElementById('tabPrescriptions');
+            const listTab = document.getElementById('medicineTabList');
+            const rxTab = document.getElementById('medicineTabPrescription');
+            if (tab === 'list') {
+                listBtn.className = 'btn';
+                rxBtn.className = 'btn btn-secondary';
+                listTab.style.display = '';
+                rxTab.style.display = 'none';
+            } else {
+                listBtn.className = 'btn btn-secondary';
+                rxBtn.className = 'btn';
+                listTab.style.display = 'none';
+                rxTab.style.display = '';
+                updatePrescriptionList();
+            }
+        }
+
+        function openPrescriptionModal(editId) {
+            const modal = document.getElementById('prescriptionModal');
+            const title = document.getElementById('prescriptionModalTitle');
+            const form = document.getElementById('prescriptionForm');
+            form.reset();
+            document.getElementById('rxEditId').value = '';
+            document.getElementById('rxDate').value = new Date().toISOString().split('T')[0];
+
+            const personSelect = document.getElementById('rxPerson');
+            personSelect.innerHTML = familyMembers.map(m =>
+                `<option value="${m}">${m}</option>`
+            ).join('');
+
+            const medSelector = document.getElementById('rxMedicineSelector');
+            medSelector.innerHTML = medicines.map(m =>
+                `<label style="display:flex;align-items:center;gap:6px;padding:6px 10px;border-radius:8px;border:1px solid var(--color-border);background:var(--color-surface-light);font-size:13px;cursor:pointer;">
+                    <input type="checkbox" value="${m.id}" class="rx-med-cb"> ${m.name}${m.brand ? '（' + m.brand + '）' : ''}
+                </label>`
+            ).join('');
+
+            if (editId) {
+                const rx = prescriptions.find(r => r.id === editId);
+                if (rx) {
+                    title.textContent = '编辑处方';
+                    document.getElementById('rxEditId').value = rx.id;
+                    document.getElementById('rxName').value = rx.name || '';
+                    document.getElementById('rxDate').value = rx.prescription_date || '';
+                    document.getElementById('rxDoctor').value = rx.doctor || '';
+                    document.getElementById('rxSymptoms').value = rx.symptoms || '';
+                    document.getElementById('rxNote').value = rx.note || '';
+                    personSelect.value = rx.for_person || familyMembers[0];
+                    const medIds = rx.medicineIds || [];
+                    document.querySelectorAll('.rx-med-cb').forEach(cb => {
+                        cb.checked = medIds.includes(cb.value);
+                    });
+                }
+            } else {
+                title.textContent = '新建处方';
+            }
+
+            modal.classList.add('active');
+        }
+
+        function closePrescriptionModal() {
+            document.getElementById('prescriptionModal').classList.remove('active');
+        }
+
+        async function handlePrescriptionSubmit(e) {
+            e.preventDefault();
+            const { data: { user } } = await db.auth.getUser();
+            if (!user) return;
+
+            const name = document.getElementById('rxName').value.trim();
+            const prescriptionDate = document.getElementById('rxDate').value;
+            const doctor = document.getElementById('rxDoctor').value.trim();
+            const symptoms = document.getElementById('rxSymptoms').value.trim();
+            const forPerson = document.getElementById('rxPerson').value;
+            const note = document.getElementById('rxNote').value.trim();
+            const medicineIds = [];
+            document.querySelectorAll('.rx-med-cb:checked').forEach(cb => medicineIds.push(cb.value));
+            const editId = document.getElementById('rxEditId').value;
+
+            const record = {
+                name,
+                prescription_date: prescriptionDate,
+                doctor,
+                symptoms,
+                for_person: forPerson,
+                medicine_ids: medicineIds,
+                note,
+                user_id: user.id
+            };
+
+            if (editId) {
+                const { data, error } = await db
+                    .from('prescriptions')
+                    .update({
+                        name, prescription_date: prescriptionDate, doctor, symptoms,
+                        for_person: forPerson, medicine_ids: medicineIds, note,
+                        updated_at: new Date().toISOString()
+                    })
+                    .eq('id', editId)
+                    .select()
+                    .single();
+                if (error) { showToast('更新失败：' + error.message, 'error'); return; }
+                const idx = prescriptions.findIndex(r => r.id === editId);
+                if (idx >= 0) prescriptions[idx] = { ...data, medicineIds: data.medicine_ids || [], createdAt: data.created_at };
+                showToast('处方已更新', 'success');
+            } else {
+                const { data, error } = await db
+                    .from('prescriptions')
+                    .insert(record)
+                    .select()
+                    .single();
+                if (error) { showToast('添加失败：' + error.message, 'error'); return; }
+                prescriptions.unshift({ ...data, medicineIds: data.medicine_ids || [], createdAt: data.created_at });
+                showToast('处方已添加', 'success');
+            }
+
+            closePrescriptionModal();
+            updatePrescriptionList();
+            updateMedicineList();
+        }
+
+        async function deletePrescription(id) {
+            if (!await showConfirm('确定删除此处方吗？')) return;
+            const { error } = await db.from('prescriptions').delete().eq('id', id);
+            if (error) { showToast('删除失败：' + error.message, 'error'); return; }
+            prescriptions = prescriptions.filter(r => r.id !== id);
+            updatePrescriptionList();
+            updateMedicineList();
+            showToast('处方已删除', 'success');
+        }
+
+        function updatePrescriptionList() {
+            const container = document.getElementById('prescriptionList');
+            if (prescriptions.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="icon">📋</div>
+                        <h3>暂无处方记录</h3>
+                        <p>点击"新建处方"按钮开始管理处方</p>
+                    </div>`;
+                return;
+            }
+
+            container.innerHTML = prescriptions.map(rx => {
+                const rxMeds = (rx.medicineIds || []).map(id => medicines.find(m => m.id === id)).filter(Boolean);
+                return `
+                    <div class="card" style="margin-bottom:var(--spacing-3);">
+                        <div style="display:flex;justify-content:space-between;align-items:center;">
+                            <div>
+                                <strong style="font-size:16px;">${rx.name}</strong>
+                                <span class="text-muted" style="font-size:12px;margin-left:8px;">${formatDate(rx.prescription_date)}</span>
+                            </div>
+                            <div style="display:flex;gap:4px;">
+                                <button onclick="openPrescriptionModal('${rx.id}')" style="background:none;border:none;cursor:pointer;font-size:18px;padding:4px;opacity:0.5;">✏️</button>
+                                <button onclick="deletePrescription('${rx.id}')" style="background:none;border:none;cursor:pointer;font-size:18px;padding:4px;opacity:0.5;">🗑️</button>
+                            </div>
+                        </div>
+                        <div class="text-muted" style="margin-top:var(--spacing-2);font-size:13px;">
+                            ${rx.symptoms ? '症状：' + rx.symptoms + ' | ' : ''}${rx.doctor ? '医生/医院：' + rx.doctor + ' | ' : ''}开给：${rx.for_person}
+                        </div>
+                        ${rxMeds.length > 0 ? `
+                            <div style="margin-top:var(--spacing-2);display:flex;flex-wrap:wrap;gap:4px;">
+                                ${rxMeds.map(m => `<span class="medicine-tag">💊 ${m.name}${m.brand ? '（' + m.brand + '）' : ''}</span>`).join('')}
+                            </div>` : '<div class="text-muted" style="margin-top:var(--spacing-2);font-size:13px;">未关联药品</div>'}
+                        ${rx.note ? `<div class="text-muted" style="margin-top:var(--spacing-2);font-size:13px;">备注：${rx.note}</div>` : ''}
+                    </div>`;
+            }).join('');
         }
 
         function getMonthRange() {
@@ -1992,6 +2913,18 @@
                 updateDashboard();
                 showToast('记录已修改', 'success');
             });
+
+            // Medicine Form
+            document.getElementById('medicineForm').addEventListener('submit', handleMedicineSubmit);
+
+            // Medicine Filters
+            document.getElementById('medicineFilterStatus').addEventListener('change', updateMedicineList);
+            document.getElementById('medicineFilterLocation').addEventListener('change', updateMedicineList);
+            document.getElementById('medicineFilterAudience').addEventListener('change', updateMedicineList);
+            document.getElementById('medicineFilterIndication').addEventListener('change', updateMedicineList);
+            document.getElementById('medicineFilterPrescription').addEventListener('change', updateMedicineList);
+
+            document.getElementById('prescriptionForm').addEventListener('submit', handlePrescriptionSubmit);
         }
 
         function navigateTo(page) {
@@ -2006,6 +2939,7 @@
             if (page === 'transactions') filterTransactions();
             if (page === 'assets') updateAssets();
             if (page === 'statistics') updateStatistics();
+            if (page === 'medicine') updateMedicineList();
         }
 
         function setDefaultDate() {
@@ -2172,6 +3106,47 @@
             document.title = `家庭记账本 | ${formatCurrency(balance)}`;
 
             updateRecentTransactions();
+            updateDashboardMedicineAlert();
+        }
+
+        function updateDashboardMedicineAlert() {
+            const container = document.getElementById('dashboardMedicineAlert');
+            if (!container) return;
+
+            const expiredMeds = medicines.filter(m => getMedicineExpiryStatus(m.expiry_date) === 'expired');
+            const expiringMeds = medicines.filter(m => getMedicineExpiryStatus(m.expiry_date) === 'expiring');
+
+            if (expiredMeds.length === 0 && expiringMeds.length === 0) {
+                container.style.display = 'none';
+                return;
+            }
+
+            let html = '<div class="dashboard-medicine-alert">';
+            if (expiredMeds.length > 0) {
+                html += `<h4>🔴 已过期药品（${expiredMeds.length}种）</h4>`;
+                html += expiredMeds.map(m => `
+                    <div class="dashboard-medicine-alert-item">
+                        <span>${m.name}（数量：${m.quantity}）</span>
+                        <span style="color:var(--color-error);">已过期</span>
+                    </div>`).join('');
+            }
+            if (expiringMeds.length > 0) {
+                html += `<h4 style="margin-top:${expiredMeds.length > 0 ? 'var(--spacing-3)' : '0'};">🟡 即将过期药品（${expiringMeds.length}种）</h4>`;
+                html += expiringMeds.map(m => {
+                    const status = getMedicineExpiryStatus(m.expiry_date);
+                    const label = getMedicineExpiryLabel(status, m.expiry_date);
+                    return `
+                    <div class="dashboard-medicine-alert-item">
+                        <span>${m.name}（数量：${m.quantity}）</span>
+                        <span style="color:var(--color-warning);">${label}</span>
+                    </div>`;
+                }).join('');
+            }
+            html += `<button class="btn btn-secondary" onclick="navigateTo('medicine')" style="margin-top:var(--spacing-3);width:100%;">查看药品管理</button>`;
+            html += '</div>';
+
+            container.innerHTML = html;
+            container.style.display = 'block';
         }
 
         function animateValue(elementId, value) {
@@ -3652,6 +4627,42 @@
                     const name = document.getElementById('newMemberName').value;
                     addMember(name);
                     document.getElementById('newMemberName').value = '';
+                }
+            });
+
+            // Render location management
+            renderLocationList();
+            const addLocationInput = document.getElementById('newLocationName');
+            const newAddLocationInput = addLocationInput.cloneNode(true);
+            addLocationInput.parentNode.replaceChild(newAddLocationInput, addLocationInput);
+            document.getElementById('addLocationBtn').addEventListener('click', () => {
+                const name = document.getElementById('newLocationName').value;
+                addLocation(name);
+                document.getElementById('newLocationName').value = '';
+            });
+            document.getElementById('newLocationName').addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    const name = document.getElementById('newLocationName').value;
+                    addLocation(name);
+                    document.getElementById('newLocationName').value = '';
+                }
+            });
+
+            // Render indication management
+            renderIndicationList();
+            const addIndicationInput = document.getElementById('newIndicationName');
+            const newAddIndicationInput = addIndicationInput.cloneNode(true);
+            addIndicationInput.parentNode.replaceChild(newAddIndicationInput, addIndicationInput);
+            document.getElementById('addIndicationBtn').addEventListener('click', () => {
+                const name = document.getElementById('newIndicationName').value;
+                addIndication(name);
+                document.getElementById('newIndicationName').value = '';
+            });
+            document.getElementById('newIndicationName').addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    const name = document.getElementById('newIndicationName').value;
+                    addIndication(name);
+                    document.getElementById('newIndicationName').value = '';
                 }
             });
 
