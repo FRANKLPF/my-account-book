@@ -2667,7 +2667,8 @@
                         'Authorization': `Bearer ${apiKey}`
                     },
                     body: JSON.stringify({
-                        model: 'deepseek-chat',
+                        model: 'deepseek-v4-pro',
+                        thinking: { type: 'disabled' },
                         messages: [{
                             role: 'user',
                             content: [
