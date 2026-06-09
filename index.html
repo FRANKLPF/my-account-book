@@ -1424,16 +1424,18 @@
                         <input type="text" id="rxDoctor" placeholder="如：张医生 / 某某医院" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--color-border);background:var(--color-surface-light);color:var(--color-text);font-size:14px;">
                     </div>
                     <div class="form-group">
-                        <label>症状</label>
-                        <input type="text" id="rxSymptoms" placeholder="如：头痛发热、咳嗽三天" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--color-border);background:var(--color-surface-light);color:var(--color-text);font-size:14px;">
+                        <label>症状 <span id="rxSymptomsExpand" style="color:var(--color-primary);font-size:12px;cursor:pointer;display:none;">展开全文</span></label>
+                        <input type="text" id="rxSymptoms" placeholder="如：头痛发热、咳嗽三天" readonly onclick="this.readOnly=false" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--color-border);background:var(--color-surface-light);color:var(--color-text);font-size:14px;text-overflow:ellipsis;white-space:nowrap;overflow:hidden;">
+                        <textarea id="rxSymptomsFull" style="display:none;width:100%;min-height:80px;resize:vertical;padding:10px;border-radius:8px;border:1px solid var(--color-border);background:var(--color-surface-light);color:var(--color-text);font-size:14px;font-family:inherit;"></textarea>
                     </div>
                     <div class="form-group">
                         <label>选择药品（可多选）</label>
                         <div id="rxMedicineSelector" style="max-height:200px;overflow-y:auto;display:flex;flex-direction:column;gap:6px;margin-top:4px;"></div>
                     </div>
                     <div class="form-group">
-                        <label>备注</label>
-                        <input type="text" id="rxNote" placeholder="处方备注" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--color-border);background:var(--color-surface-light);color:var(--color-text);font-size:14px;">
+                        <label>备注 <span id="rxNoteExpand" style="color:var(--color-primary);font-size:12px;cursor:pointer;display:none;">展开全文</span></label>
+                        <input type="text" id="rxNote" placeholder="处方备注" readonly onclick="this.readOnly=false" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--color-border);background:var(--color-surface-light);color:var(--color-text);font-size:14px;text-overflow:ellipsis;white-space:nowrap;overflow:hidden;">
+                        <textarea id="rxNoteFull" style="display:none;width:100%;min-height:80px;resize:vertical;padding:10px;border-radius:8px;border:1px solid var(--color-border);background:var(--color-surface-light);color:var(--color-text);font-size:14px;font-family:inherit;"></textarea>
                     </div>
                     <input type="hidden" id="rxEditId">
                     <div style="display:flex;gap:var(--spacing-2);margin-top:var(--spacing-4);">
@@ -2582,8 +2584,8 @@
                     document.getElementById('rxName').value = rx.name || '';
                     document.getElementById('rxDate').value = rx.prescription_date || '';
                     document.getElementById('rxDoctor').value = rx.doctor || '';
-                    document.getElementById('rxSymptoms').value = rx.symptoms || '';
-                    document.getElementById('rxNote').value = rx.note || '';
+                    setRxField('rxSymptoms', rx.symptoms || '');
+                    setRxField('rxNote', rx.note || '');
                     personSelect.value = rx.for_person || familyMembers[0];
                     const medIds = rx.medicineIds || [];
                     document.querySelectorAll('.rx-med-cb').forEach(cb => {
@@ -2645,16 +2647,27 @@
             const prompt = `你是一个处方识别助手。请分析这张处方图片，提取以下信息并以JSON格式返回（只返回JSON，不要其他内容）：
 {
   "name": "处方名称（根据症状或药品概括，如：感冒处方、降压处方）",
+  "date": "开方日期，格式为YYYY-MM-DD（如看不清则为空字符串）",
+  "patient": "患者姓名（如看不清则为空字符串）",
   "doctor": "医生姓名或医院名称（如看不清则为空字符串）",
   "symptoms": "症状描述（如看不清则为空字符串）",
-  "medicines": ["药品1名称", "药品2名称"],
+  "medicines": [
+    {
+      "name": "药品通用名称",
+      "specification": "规格（如：0.1g*10袋）",
+      "dosage": "用法用量（如：一天两次 每次0.15g 口服）",
+      "quantity": 2,
+      "indications": ["感冒", "咳嗽"]
+    }
+  ],
   "note": "备注（如有特殊说明）"
 }
 
 注意：
-- medicines 数组中只写药品通用名称，不要包含剂量和用法
 - 如果识别不到某个字段，使用空字符串或空数组
-- 请仔细识别所有药品名称`;
+- quantity 是数量，单位为盒/瓶，默认为1
+- indications 是该药品的适应症，请根据药品名称和处方症状推断，从以下选项中选取：${medicineIndications.join('、')}
+- 请仔细识别所有药品名称、规格和用法用量`;
 
             const controller = new AbortController();
             const timeout = setTimeout(() => controller.abort(), 30000);
@@ -2697,30 +2710,78 @@
             }
         }
 
+        function setRxField(fieldId, value) {
+            const input = document.getElementById(fieldId);
+            const textarea = document.getElementById(fieldId + 'Full');
+            const expand = document.getElementById(fieldId + 'Expand');
+            input.value = value;
+            textarea.value = value;
+            expand.style.display = value.length > 20 ? '' : 'none';
+            expand.textContent = '展开全文';
+            input.style.display = '';
+            textarea.style.display = 'none';
+        }
+
+        function getRxField(fieldId) {
+            const input = document.getElementById(fieldId);
+            const textarea = document.getElementById(fieldId + 'Full');
+            return (textarea.style.display !== 'none' ? textarea.value : input.value).trim();
+        }
+
         async function fillPrescriptionFromAI(result) {
             if (result.name) document.getElementById('rxName').value = result.name;
+            if (result.date) {
+                const d = new Date(result.date);
+                if (!isNaN(d.getTime())) document.getElementById('rxDate').value = result.date;
+            }
+            if (result.patient) {
+                const personSelect = document.getElementById('rxPerson');
+                const match = familyMembers.find(m => result.patient.includes(m) || m.includes(result.patient));
+                if (match) personSelect.value = match;
+            }
             if (result.doctor) document.getElementById('rxDoctor').value = result.doctor;
-            if (result.symptoms) document.getElementById('rxSymptoms').value = result.symptoms;
-            if (result.note) document.getElementById('rxNote').value = result.note;
+            if (result.symptoms) {
+                setRxField('rxSymptoms', result.symptoms);
+            }
+            if (result.note) {
+                setRxField('rxNote', result.note);
+            }
 
             if (result.medicines && result.medicines.length > 0) {
+                const medList = result.medicines.map(m => typeof m === 'string' ? { name: m } : m);
                 const existingNames = medicines.map(m => m.name.toLowerCase());
-                const newMedNames = result.medicines.filter(
-                    m => !existingNames.includes(m.toLowerCase())
+                const newMeds = medList.filter(
+                    m => !existingNames.includes(m.name.toLowerCase())
                 );
 
-                if (newMedNames.length > 0) {
+                if (newMeds.length > 0) {
                     const { data: { user } } = await db.auth.getUser();
                     if (!user) return;
+                    const symptomsText = (result.symptoms || '') + (result.name || '');
+                    const matchedIndications = medicineIndications.filter(ind =>
+                        symptomsText.includes(ind)
+                    );
 
-                    for (const medName of newMedNames) {
+                    for (const med of newMeds) {
+                        const medIndications = (med.indications || []).filter(i =>
+                            medicineIndications.includes(i)
+                        );
+                        const finalIndications = medIndications.length > 0
+                            ? medIndications
+                            : matchedIndications.length > 0
+                                ? matchedIndications
+                                : [];
+                        const record = {
+                            name: med.name,
+                            user_id: user.id,
+                            quantity: med.quantity || 1
+                        };
+                        if (med.specification) record.specification = med.specification;
+                        if (med.dosage) record.dosage = med.dosage;
+                        if (finalIndications.length > 0) record.indications = finalIndications;
                         const { data, error } = await db
                             .from('medicines')
-                            .insert({
-                                name: medName,
-                                user_id: user.id,
-                                quantity: 0
-                            })
+                            .insert(record)
                             .select()
                             .single();
                         if (!error && data) {
@@ -2730,13 +2791,13 @@
                     document.getElementById('rxMedicineSelector').innerHTML = medicines.map(m =>
                         `<label style="display:flex;align-items:center;gap:6px;padding:4px 0;cursor:pointer;">
                             <input type="checkbox" class="rx-med-cb" value="${m.id}">
-                            <span>${m.name}</span>
+                            <span>${m.name}${m.specification ? '（' + m.specification + '）' : ''}</span>
                         </label>`
                     ).join('');
                 }
 
                 const allIds = medicines.filter(m =>
-                    result.medicines.some(rm => rm.toLowerCase() === m.name.toLowerCase())
+                    medList.some(rm => rm.name.toLowerCase() === m.name.toLowerCase())
                 ).map(m => String(m.id));
 
                 document.querySelectorAll('.rx-med-cb').forEach(cb => {
@@ -2753,9 +2814,9 @@
             const name = document.getElementById('rxName').value.trim();
             const prescriptionDate = document.getElementById('rxDate').value;
             const doctor = document.getElementById('rxDoctor').value.trim();
-            const symptoms = document.getElementById('rxSymptoms').value.trim();
+            const symptoms = getRxField('rxSymptoms');
             const forPerson = document.getElementById('rxPerson').value;
-            const note = document.getElementById('rxNote').value.trim();
+            const note = getRxField('rxNote');
             const medicineIds = [];
             document.querySelectorAll('.rx-med-cb:checked').forEach(cb => medicineIds.push(cb.value));
             const editId = document.getElementById('rxEditId').value;
@@ -3116,6 +3177,30 @@
             document.getElementById('rxPhotoRemove').addEventListener('click', () => {
                 document.getElementById('rxPhotoPreview').style.display = 'none';
                 document.getElementById('rxPhotoInput').value = '';
+            });
+
+            ['rxSymptoms', 'rxNote'].forEach(field => {
+                const input = document.getElementById(field);
+                const textarea = document.getElementById(field + 'Full');
+                const expand = document.getElementById(field + 'Expand');
+                input.addEventListener('input', () => {
+                    expand.style.display = input.value.length > 20 ? '' : 'none';
+                });
+                expand.addEventListener('click', () => {
+                    if (textarea.style.display === 'none') {
+                        textarea.value = input.value;
+                        textarea.style.display = '';
+                        input.style.display = 'none';
+                        expand.textContent = '收起';
+                        textarea.focus();
+                    } else {
+                        input.value = textarea.value;
+                        input.style.display = '';
+                        textarea.style.display = 'none';
+                        expand.style.display = input.value.length > 20 ? '' : 'none';
+                        expand.textContent = '展开全文';
+                    }
+                });
             });
 
             const savedKey = localStorage.getItem('deepseek_api_key');
